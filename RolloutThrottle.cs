@@ -57,6 +57,15 @@ namespace CollegeEducatedAutoEngineer
 
             PidInfo info = For(ae);
 
+            // Another mod may already smooth the diesel notch stepping; two filters in series can leave the lever lagging the controller.
+            if (!Main.Settings.SmoothDieselThrottle && ae.Locomotive is Model.DieselLocomotive)
+            {
+                info.HasLast = false;
+                info.Gliding = false;
+                info.Floor = 0f;
+                return false;
+            }
+
             // A command that brakes never keeps the throttle open: close it now and start the filter over.
             float applied = BrakeTaps.AppliedSet(loop);
             bool braking = command.IndependentBrake01 > 0.01f

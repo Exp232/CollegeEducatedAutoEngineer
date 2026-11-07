@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.3
+
+- **Settings are backed up outside the mod folder** (requested on Discord). Every time they are saved, a copy of `Settings.xml` goes to `Documents\Railroader\CollegeEducatedAutoEngineer-Settings.xml`. When the mod starts and the mod folder has no `Settings.xml` (a mod manager replaced the whole folder on an update), the copy is restored first. To reset to defaults, delete both files.
+- **New option `SmoothDieselThrottle`** (on; a toggle "Smooth diesel throttle" in the settings window). Switch it off when another mod already smooths the diesel notch stepping, such as Rex's Toolbox for MOW: the two filters in series can leave the lever lagging the controller's request so that the engineer never notches up. With it off the controller's own notch goes through on diesels; steam locomotives are unchanged.
+
 ## 1.2.2
 
 - **The observation car's headlight now follows the game's headlight calls at once.** It used to be set every half second from the train's speed, so it went bright a moment after the tender lamp would have. While the observation car stands in for the locomotive headlight, the game's own "bright" and "dim" calls are passed on to the observation car as they happen.

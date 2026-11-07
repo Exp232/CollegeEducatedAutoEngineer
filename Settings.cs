@@ -46,6 +46,9 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>No throttle smoothing while the target speed is under this many mph or a coupling approach is within 60 m (0 = always smooth). Settings.xml only.</summary>
         public float CrawlSmoothingMaxMph = 6f;
 
+        /// <summary>Throttle smoothing on diesel locomotives. Switch off when another mod already smooths the diesel notch stepping (the two together can leave the lever lagging the controller).</summary>
+        public bool SmoothDieselThrottle = true;
+
         /// <summary>Stand still once within a couple of metres of a stop target instead of creeping past it.</summary>
         public bool HoldStopAtStopTargets = true;
 
@@ -307,6 +310,34 @@ namespace CollegeEducatedAutoEngineer
             using (var stream = File.Create(temp)) new XmlSerializer(typeof(Settings)).Serialize(stream, this);
             if (File.Exists(path)) File.Delete(path);
             File.Move(temp, path);
+            Backup(path);
+        }
+
+        /// <summary>Where a copy of Settings.xml is kept outside the mod folder, so a mod update that replaces the whole folder does not lose the settings.</summary>
+        private static string BackupPath()
+        {
+            return Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Railroader", "CollegeEducatedAutoEngineer-Settings.xml");
+        }
+
+        private static void Backup(string path)
+        {
+            try
+            {
+                string backup = BackupPath();
+                Directory.CreateDirectory(Path.GetDirectoryName(backup));
+                File.Copy(path, backup, true);
+            }
+            catch (Exception) { /* the backup is a convenience */ }
+        }
+
+        private static void RestoreIfMissing(string path)
+        {
+            try
+            {
+                string backup = BackupPath();
+                if (!File.Exists(path) && File.Exists(backup)) File.Copy(backup, path);
+            }
+            catch (Exception) { /* start on defaults */ }
         }
 
         /// <summary>Reads the file, or returns defaults (and writes them out when there is no file yet).</summary>
@@ -314,6 +345,7 @@ namespace CollegeEducatedAutoEngineer
         {
             problem = null;
             var serializer = new XmlSerializer(typeof(Settings));
+            RestoreIfMissing(path);
             if (File.Exists(path))
             {
                 try
@@ -335,6 +367,7 @@ namespace CollegeEducatedAutoEngineer
                         try { using (var w = File.Create(path)) serializer.Serialize(w, loaded); }
                         catch (Exception) { /* the next settings change saves it */ }
                     }
+                    Backup(path);
                     return loaded;
                 }
                 catch (Exception e)
@@ -348,6 +381,7 @@ namespace CollegeEducatedAutoEngineer
             try
             {
                 using (var stream = File.Create(path)) serializer.Serialize(stream, settings);
+                Backup(path);
             }
             catch (Exception e)
             {

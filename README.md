@@ -5,7 +5,7 @@ Formerly Auto Engineer Brake Fix (versions up to 2.9.16). The mod folder and ide
 Makes the AI engineer drive like a person: fewer wasted coal and water, a smooth throttle,
 gentle brake sets for signals, and no creeping past a stop.
 
-The features are on by default and can be switched off in the in-game settings window (Ctrl+F8, applied at once). Options without a control there are edited in `Settings.xml` in the mod folder (read at start-up). Logging is off by default.
+The features are on by default and can be switched off in the in-game settings window (Ctrl+F8, applied at once). Options without a control there are edited in `Settings.xml` in the mod folder (read at start-up). A copy of `Settings.xml` is kept in `Documents\Railroader\CollegeEducatedAutoEngineer-Settings.xml` and restored if an update replaces the mod folder (delete both to reset to defaults). Logging is off by default.
 
 ## Brake fix
 In road mode the AI shares one speed setpoint between throttle and brake, with no dead zone. A tiny overspeed applies about 3% train brake, and the AI only releases it once its brake output goes clearly negative, which on a climb at full throttle may never happen: throttle and brake both on for minutes.
@@ -20,7 +20,7 @@ The stock AI uses the longest cutoff that reaches peak power, but steam and coal
 Same route and train: coal fell from 4,136 lb to 2,334 lb (-44%) and water by 26% for a few seconds more running time. On climbs of 2.0% or more (adjustable 0.5-5%) the mod hands back to the stock cutoff.
 
 ## Throttle smoothing
-The stock AI can flip the throttle between 0 and 25% every half second (on 0.6 the rollout controller sets a notch each tick; since 2.8.3 the filter works on that, as it did on the PID before). The mod low-pass filters it (default 1.6 s, `ThrottleSmoothingSeconds` in `Settings.xml`), limits how fast it can open (full in 5 s) or close, and with "Glide" on moves the lever about 20 times a second between the AI's updates, so it moves smoothly in the cab. When the train is over its setpoint and needs the brake, the throttle closes at once.
+The stock AI can flip the throttle between 0 and 25% every half second (on 0.6 the rollout controller sets a notch each tick; since 2.8.3 the filter works on that, as it did on the PID before). The mod low-pass filters it (default 1.6 s, `ThrottleSmoothingSeconds` in `Settings.xml`), limits how fast it can open (full in 5 s) or close ("Smooth diesel throttle" in the settings window switches this off on diesels, for use with another mod that smooths the diesel notches), and with "Glide" on moves the lever about 20 times a second between the AI's updates, so it moves smoothly in the cab. When the train is over its setpoint and needs the brake, the throttle closes at once.
 
 ## Signals
 - **Sight distance** (default 500 m, the game uses 200 m): how far ahead the AI reacts to a signal's aspect.

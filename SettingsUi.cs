@@ -64,6 +64,8 @@ namespace CollegeEducatedAutoEngineer
                     b.AddFieldToggle("Throttle smoothing", () => s.SmoothThrottle, v => { s.SmoothThrottle = v; Save(); });
                     Note(b, "Moves the throttle lever like a hand on the regulator. A brake application or overspeed closes it at once.");
                     b.AddFieldToggle("Glide between updates", () => s.GlideThrottle, v => { s.GlideThrottle = v; Save(); });
+                    b.AddFieldToggle("Smooth diesel throttle", () => s.SmoothDieselThrottle, v => { s.SmoothDieselThrottle = v; Save(); });
+                    Note(b, "Switch off if another mod already smooths the diesel notch stepping (for example a diesel realism mod); two smoothers together can stop the engineer notching up.");
                 });
 
                 page.AddSection("Braking and speed limits", b =>
@@ -200,6 +202,7 @@ namespace CollegeEducatedAutoEngineer
             s.DirectionStopTrainBrakeOnly = d.DirectionStopTrainBrakeOnly;
             s.SmoothThrottle = d.SmoothThrottle;
             s.GlideThrottle = d.GlideThrottle;
+            s.SmoothDieselThrottle = d.SmoothDieselThrottle;
             s.SpeedReductionLeadSeconds = d.SpeedReductionLeadSeconds;
             s.StartingResistance = d.StartingResistance;
             s.StartingResistanceFadeMph = d.StartingResistanceFadeMph;
