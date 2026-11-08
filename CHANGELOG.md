@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.1
+
+- **Fix: the position and G-force logging switched itself off at start-up.** The self-check looked for `Graph.GetPositionRotation(Location)`, but the game's method has an optional second parameter (`PositionAccuracy`), which is part of its signature, so the check reported the target missing and turned `LogGForces` off (and saving the settings window would have written that). The check now finds the method by its name and first parameter, and the same is done for `OpsController.ClosestAreaForGamePosition`. The meter itself was checked against a simulation of a curve, a grade and a steady acceleration: a right-hand curve at 15 m/s on a 200 m radius reads gY +0.115, a 2% grade reads gX +0.020, an acceleration of 0.5 m/s² reads gX +0.051, and standing level reads (0, 0, 1), forward and backward.
+
 ## 1.3.0
 
 - **Logger: locomotive position and G forces.** New "Position and G forces" switch in the Diagnostics section (`LogGForces`, off). Each `ae_*.csv` row gets `posX`, `posY`, `posZ` (game coordinates, m; `posY` = elevation), `trackLoc` (the locomotive's front as a track location, as `/location` writes it), `area` (nearest ops area, refreshed every 2 s) and `gX`, `gY`, `gZ`: the felt force on the locomotive in g, on its own axes (forward toward the F end, right, up), gravity included (level and standing = 0, 0, 1). Worked out every physics tick from the speed along the track and the track tangents at both ends of the locomotive (`Graph.GetPositionRotation`), then low-pass filtered (`GForceSmoothingSeconds`, 1 s, `Settings.xml` only) to take out slack. Locomotive only. Self-check feature "Position and G-force logging".

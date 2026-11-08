@@ -69,12 +69,12 @@ namespace CollegeEducatedAutoEngineer
                 ["AutoEngineer._control"] = () => Field(AE, "_control", null),
                 ["AutoEngineer._config"] = () => Field(AE, "_config", typeof(AutoEngineerConfig)),
                 ["AutoEngineer._debugContextualTargetVelocity"] = () => Field(AE, "_debugContextualTargetVelocity", typeof(float)),
-                ["Graph.GetPositionRotation(Location), Graph.LocationToString(Location)"] =
-                    () => Method(typeof(Track.Graph), "GetPositionRotation", new[] { typeof(Track.Location) }, typeof(Track.Graph.PositionRotation))
+                ["Graph.GetPositionRotation(Location, ...), Graph.LocationToString(Location)"] =
+                    () => GraphPositionRotationFound()
                         && AccessTools.Method(typeof(Track.Graph), "LocationToString", new[] { typeof(Track.Location) }) != null,
                 ["Car.LocationF, Car.LocationR"] = () => Member(typeof(Car), "LocationF") && Member(typeof(Car), "LocationR"),
                 ["OpsController.ClosestAreaForGamePosition(Vector3)"] =
-                    () => AccessTools.Method(typeof(Model.Ops.OpsController), "ClosestAreaForGamePosition", new[] { typeof(UnityEngine.Vector3) }) != null,
+                    () => OpsAreaLookupFound(),
 
                 ["AutoEngineer.TrainBrake"] = () => BrakeGuidance.TrainBrakeType != null,
                 ["AutoEngineer.TrainBrake._ae"] = () => BrakeGuidance.TrainBrakeType != null && Field(BrakeGuidance.TrainBrakeType, "_ae", typeof(AutoEngineer)),
@@ -364,7 +364,7 @@ namespace CollegeEducatedAutoEngineer
                     Name = "Position and G-force logging",
                     On = () => s.LogEnabled && s.LogGForces,
                     TurnOff = () => s.LogGForces = false,
-                    Needs = new[] { "Graph.GetPositionRotation(Location), Graph.LocationToString(Location)", "Car.LocationF, Car.LocationR", "OpsController.ClosestAreaForGamePosition(Vector3)" },
+                    Needs = new[] { "Graph.GetPositionRotation(Location, ...), Graph.LocationToString(Location)", "Car.LocationF, Car.LocationR", "OpsController.ClosestAreaForGamePosition(Vector3)" },
                     Patches = new Type[0],
                 },
                 new Feature
@@ -489,6 +489,30 @@ namespace CollegeEducatedAutoEngineer
                 if (paramNames[i] != null && ps[i].Name != paramNames[i]) return false;
             }
             return true;
+        }
+
+        /// <summary>Graph.GetPositionRotation(Location loc, PositionAccuracy accuracy = Standard): the optional second parameter is part of the signature, so the method is found by its first parameter.</summary>
+        private static bool GraphPositionRotationFound()
+        {
+            foreach (MethodInfo m in typeof(Track.Graph).GetMethods(All))
+            {
+                if (m.Name != "GetPositionRotation" || m.ReturnType != typeof(Track.Graph.PositionRotation)) continue;
+                var ps = m.GetParameters();
+                if (ps.Length >= 1 && ps[0].ParameterType == typeof(Track.Location)) return true;
+            }
+            return false;
+        }
+
+        /// <summary>OpsController.ClosestAreaForGamePosition(Vector3 ...): found by name and first parameter, so an optional extra parameter does not hide it.</summary>
+        private static bool OpsAreaLookupFound()
+        {
+            foreach (MethodInfo m in typeof(Model.Ops.OpsController).GetMethods(BindingFlags.Instance | BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic))
+            {
+                if (m.Name != "ClosestAreaForGamePosition") continue;
+                var ps = m.GetParameters();
+                if (ps.Length >= 1 && ps[0].ParameterType == typeof(UnityEngine.Vector3)) return true;
+            }
+            return false;
         }
 
         private static bool Member(Type type, string name)
