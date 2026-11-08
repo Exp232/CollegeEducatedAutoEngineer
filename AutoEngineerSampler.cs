@@ -69,6 +69,9 @@ namespace CollegeEducatedAutoEngineer
 
             if (Main.Settings.LogFuelSummary) TickFuelSummary();
 
+            // G forces need every physics tick: acceleration is the change in velocity from one tick to the next.
+            if (Main.Settings.LogGForces) TickGForces();
+
             if (Time.fixedTime < _nextSampleTime) return;
 
             _nextSampleTime = Time.fixedTime + Mathf.Max(0.05f, Main.Settings.SampleIntervalSeconds);
@@ -122,6 +125,48 @@ namespace CollegeEducatedAutoEngineer
                     Main.Mod.Logger.LogException(e);
                 }
             }
+        }
+
+        private readonly GForceMeter _gMeter = new GForceMeter();
+        private bool _loggedGForceError;
+
+        private void TickGForces()
+        {
+            try
+            {
+                _gMeter.Tick(_ae.Locomotive, Time.fixedTime, Main.Settings.GForceSmoothingSeconds);
+            }
+            catch (Exception e)
+            {
+                _gMeter.Reset();
+                if (!_loggedGForceError)
+                {
+                    _loggedGForceError = true;
+                    Main.Mod.Logger.Log("G-force meter error (further errors suppressed for this engineer):");
+                    Main.Mod.Logger.LogException(e);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Where the locomotive is and the G forces on it (LogGForces): posX/posY/posZ in game coordinates (m, posY =
+        /// elevation), trackLoc (the front's track location, as the /location command writes it), area (the nearest
+        /// ops area), and gX/gY/gZ (forward, right, up, in g; see GForceMeter).
+        /// </summary>
+        private void AddGForces(RowBuilder row)
+        {
+            if (!Main.Settings.LogGForces) return;
+            bool pos = _gMeter.HasPosition;
+            Vector3 p = _gMeter.Position;
+            Vector3 g = _gMeter.Reading;
+            row.Add("posX", pos ? p.x : float.NaN)
+               .Add("posY", pos ? p.y : float.NaN)
+               .Add("posZ", pos ? p.z : float.NaN)
+               .Add("trackLoc", pos ? _gMeter.TrackLocation : "")
+               .Add("area", pos ? _gMeter.Area : "")
+               .Add("gX", g.x)
+               .Add("gY", g.y)
+               .Add("gZ", g.z);
         }
 
         private bool _loggedSignalError;
@@ -236,6 +281,7 @@ namespace CollegeEducatedAutoEngineer
                 .Add("coalLbs", SteamValue(loco, 2))
                 .Add("dieselGps", FuelReader.DieselRate(loco));
 
+            AddGForces(row);
             AddSignal(row, targets);
             AddGuidance(row);
             AddCommand(row);

@@ -69,6 +69,12 @@ namespace CollegeEducatedAutoEngineer
                 ["AutoEngineer._control"] = () => Field(AE, "_control", null),
                 ["AutoEngineer._config"] = () => Field(AE, "_config", typeof(AutoEngineerConfig)),
                 ["AutoEngineer._debugContextualTargetVelocity"] = () => Field(AE, "_debugContextualTargetVelocity", typeof(float)),
+                ["Graph.GetPositionRotation(Location), Graph.LocationToString(Location)"] =
+                    () => Method(typeof(Track.Graph), "GetPositionRotation", new[] { typeof(Track.Location) }, typeof(Track.Graph.PositionRotation))
+                        && AccessTools.Method(typeof(Track.Graph), "LocationToString", new[] { typeof(Track.Location) }) != null,
+                ["Car.LocationF, Car.LocationR"] = () => Member(typeof(Car), "LocationF") && Member(typeof(Car), "LocationR"),
+                ["OpsController.ClosestAreaForGamePosition(Vector3)"] =
+                    () => AccessTools.Method(typeof(Model.Ops.OpsController), "ClosestAreaForGamePosition", new[] { typeof(UnityEngine.Vector3) }) != null,
 
                 ["AutoEngineer.TrainBrake"] = () => BrakeGuidance.TrainBrakeType != null,
                 ["AutoEngineer.TrainBrake._ae"] = () => BrakeGuidance.TrainBrakeType != null && Field(BrakeGuidance.TrainBrakeType, "_ae", typeof(AutoEngineer)),
@@ -352,6 +358,14 @@ namespace CollegeEducatedAutoEngineer
                     TurnOff = () => s.LogSignals = false,
                     Needs = new[] { "AutoEngineer.SetTargets(Targets)", "AutoEngineer._targets", "Targets.AllTargets", "Targets.NextSignal", "CTCSignal.id, LastShownAspect, DisplayName" },
                     Patches = new[] { typeof(AutoEngineer_SetTargets_Patch) },
+                },
+                new Feature
+                {
+                    Name = "Position and G-force logging",
+                    On = () => s.LogEnabled && s.LogGForces,
+                    TurnOff = () => s.LogGForces = false,
+                    Needs = new[] { "Graph.GetPositionRotation(Location), Graph.LocationToString(Location)", "Car.LocationF, Car.LocationR", "OpsController.ClosestAreaForGamePosition(Vector3)" },
+                    Patches = new Type[0],
                 },
                 new Feature
                 {

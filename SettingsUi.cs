@@ -142,6 +142,8 @@ namespace CollegeEducatedAutoEngineer
                     b.AddFieldToggle("CTC dump", () => s.LogCtc, v => { s.LogCtc = v; Save(); });
                     b.AddFieldToggle("Fuel summary", () => s.LogFuelSummary, v => { s.LogFuelSummary = v; Save(); });
                     b.AddFieldToggle("Tender coal and water", () => s.LogFuel, v => { s.LogFuel = v; Save(); });
+                    b.AddFieldToggle("Position and G forces", () => s.LogGForces, v => { s.LogGForces = v; Save(); });
+                    Note(b, "Adds the locomotive's map position, track location and nearest area, and the G forces on it (forward, right, up).");
                     Note(b, "The sub-options only matter while the diagnostic log is on.");
                 });
 

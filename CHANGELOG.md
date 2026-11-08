@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.0
+
+- **Logger: locomotive position and G forces.** New "Position and G forces" switch in the Diagnostics section (`LogGForces`, off). Each `ae_*.csv` row gets `posX`, `posY`, `posZ` (game coordinates, m; `posY` = elevation), `trackLoc` (the locomotive's front as a track location, as `/location` writes it), `area` (nearest ops area, refreshed every 2 s) and `gX`, `gY`, `gZ`: the felt force on the locomotive in g, on its own axes (forward toward the F end, right, up), gravity included (level and standing = 0, 0, 1). Worked out every physics tick from the speed along the track and the track tangents at both ends of the locomotive (`Graph.GetPositionRotation`), then low-pass filtered (`GForceSmoothingSeconds`, 1 s, `Settings.xml` only) to take out slack. Locomotive only. Self-check feature "Position and G-force logging".
+
 ## 1.2.5
 
 - **Waypoint Queue compatibility: train preparation is skipped for waypoint orders.** Waypoint Queue takes over waypoint orders, releases handbrakes and connects air on coupling through its own per-waypoint options, and sets handbrakes deliberately on the cars it cuts off. With it loaded, the mod no longer releases handbrakes, connects air or closes anglecocks when a waypoint order starts; Road and Yard orders still get it. Controlled by the same `WaypointQueueCompat` option in `Settings.xml` (on). At the Waypoint Queue author's suggestion.

@@ -242,6 +242,12 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>Also log coal and water aboard a steam locomotive's tender (see FuelReader).</summary>
         public bool LogFuel = false;
 
+        /// <summary>Also log the locomotive's position (posX/posY/posZ, trackLoc, area) and the G forces on it (gX forward, gY right, gZ up, in g; see GForceMeter).</summary>
+        public bool LogGForces = false;
+
+        /// <summary>Time constant (seconds) of the low-pass filter on gX/gY/gZ, which takes out slack and coupler jitter. 0 = raw per physics tick. Settings.xml only.</summary>
+        public float GForceSmoothingSeconds = 1f;
+
         /// <summary>Also log what the rollout controller decided each tick (action, its cost, the cost of holding, and the cost of each first action).</summary>
         public bool LogDecisions = false;
 
