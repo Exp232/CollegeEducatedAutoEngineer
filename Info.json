@@ -2,7 +2,7 @@
   "identifier": "exp232/collegeeducatedautoengineer",
   "name": "College Educated Auto Engineer",
   "author": "Exp232",
-  "version": "1.2.4",
+  "version": "1.2.5",
   "description": "Improves the auto-engineer: brake-drag fix, shorter cutoff, smooth throttle, gentle signal braking, speed-limit handling, stall guard, optional realistic fuel use and starting resistance.",
   "url": "https://github.com/Exp232/CollegeEducatedAutoEngineer",
   "dependencies": {

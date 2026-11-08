@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.5
+
+- **Waypoint Queue compatibility: train preparation is skipped for waypoint orders.** Waypoint Queue takes over waypoint orders, releases handbrakes and connects air on coupling through its own per-waypoint options, and sets handbrakes deliberately on the cars it cuts off. With it loaded, the mod no longer releases handbrakes, connects air or closes anglecocks when a waypoint order starts; Road and Yard orders still get it. Controlled by the same `WaypointQueueCompat` option in `Settings.xml` (on). At the Waypoint Queue author's suggestion.
+
 ## 1.2.4
 
 - **Waypoint Queue compatibility: the waypoint's speed target is left where it is.** Waypoint Queue rewrites the speed of the "Running to waypoint" / "At waypoint" target (the passing speed of a waypoint that does not stop) and finds that target again by its reason and its distance, within 10 m. The early-slowing shift for lower limits (`SpeedReductionLeadSeconds`, 10 s, about 90 m at 20 mph) moved that same target, so the distances no longer matched and the passing speed was not applied. With Waypoint Queue loaded the shift now skips the waypoint targets. `WaypointQueueCompat` in `Settings.xml` (on) turns this off. Found with the Waypoint Queue author's permission and his pointer to the AE targets.

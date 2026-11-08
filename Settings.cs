@@ -58,7 +58,7 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>Start slowing for a lower limit as if it began this many seconds of travel sooner (0 = stock). 10 since 2.4.3 (6 before): on the Bryson to Sylva round trip it used about 3% less coal than 6 for the same time; 14 gave no more.</summary>
         public float SpeedReductionLeadSeconds = 10f;
 
-        /// <summary>With Waypoint Queue loaded, leave the waypoint's speed target where it is (its passing speed is matched by distance). Settings.xml only.</summary>
+        /// <summary>With Waypoint Queue loaded: leave the waypoint's speed target where it is (its passing speed is matched by distance), and skip train preparation (handbrakes, air, anglecocks) for waypoint orders, which it handles itself. Settings.xml only.</summary>
         public bool WaypointQueueCompat = true;
 
         /// <summary>Detect a stall on a grade (full throttle, almost stopped, climbing): brake, stay put and announce it.</summary>

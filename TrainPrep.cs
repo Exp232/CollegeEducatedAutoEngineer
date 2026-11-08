@@ -73,7 +73,11 @@ namespace CollegeEducatedAutoEngineer
             }
             if (!s.Pending || Mathf.Abs(loco.velocity) > 1f) return;   // wait until the train stands
             s.Pending = false;
-            if (Main.Settings.PrepTrain) Prepare(loco);
+            if (!Main.Settings.PrepTrain) return;
+            // Waypoint Queue takes over every waypoint order and has its own, per-waypoint "Connect air" and "Release handbrakes"
+            // options, and it sets handbrakes deliberately on the cars it cuts off. Leave the brakes to it.
+            if (Main.Settings.WaypointQueueCompat && orders.Mode == AutoEngineerMode.Waypoint && SignalPlanning.WaypointQueueLoaded) return;
+            Prepare(loco);
         }
 
         /// <summary>Walks the couplers from the locomotive: each car with its neighbour on each logical end (null = free end).</summary>
