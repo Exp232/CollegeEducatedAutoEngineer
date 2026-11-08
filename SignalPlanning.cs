@@ -40,6 +40,34 @@ namespace CollegeEducatedAutoEngineer
             return Mathf.Clamp(Main.Settings.SignalSightMeters, StockSightMeters, 900f);
         }
 
+        private static bool _wqChecked, _wq;
+
+        /// <summary>True when the Waypoint Queue mod is loaded. It rewrites the waypoint target's speed in AutoEngineer.SetRouteProfile and finds that target by its reason and by its distance (within 10 m).</summary>
+        internal static bool WaypointQueueLoaded
+        {
+            get
+            {
+                if (!_wqChecked)
+                {
+                    _wqChecked = true;
+                    try
+                    {
+                        foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+                        {
+                            if (assembly.GetName().Name == "WaypointQueue") { _wq = true; break; }
+                        }
+                    }
+                    catch (Exception) { }
+                }
+                return _wq;
+            }
+        }
+
+        internal static bool IsWaypointTarget(string reason)
+        {
+            return reason == "Running to waypoint" || reason == "At waypoint";
+        }
+
         internal static void Warn(string message)
         {
             if (_warned) return;
@@ -287,6 +315,8 @@ namespace CollegeEducatedAutoEngineer
                 var t = list[i];
                 float v = Mathf.Abs(t.SpeedMph);
                 if (v < 5f || t.Distance <= 0f || v >= upper - 0.5f || t.Reason == "Approach Hold") continue;
+                // Waypoint Queue finds the waypoint target again by its distance; moving it would stop its passing speed from applying.
+                if (Main.Settings.WaypointQueueCompat && SignalPlanning.IsWaypointTarget(t.Reason) && SignalPlanning.WaypointQueueLoaded) continue;
                 list[i] = new AutoEngineer.Targets.Target(t.SpeedMph, Mathf.Max(0f, t.Distance - lead), t.Reason);
                 changed = true;
             }

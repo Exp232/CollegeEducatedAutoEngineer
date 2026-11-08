@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.2.4
+
+- **Waypoint Queue compatibility: the waypoint's speed target is left where it is.** Waypoint Queue rewrites the speed of the "Running to waypoint" / "At waypoint" target (the passing speed of a waypoint that does not stop) and finds that target again by its reason and its distance, within 10 m. The early-slowing shift for lower limits (`SpeedReductionLeadSeconds`, 10 s, about 90 m at 20 mph) moved that same target, so the distances no longer matched and the passing speed was not applied. With Waypoint Queue loaded the shift now skips the waypoint targets. `WaypointQueueCompat` in `Settings.xml` (on) turns this off. Found with the Waypoint Queue author's permission and his pointer to the AE targets.
+
 ## 1.2.3
 
 - **Settings are backed up outside the mod folder** (requested on Discord). Every time they are saved, a copy of `Settings.xml` goes to `Documents\Railroader\CollegeEducatedAutoEngineer-Settings.xml`. When the mod starts and the mod folder has no `Settings.xml` (a mod manager replaced the whole folder on an update), the copy is restored first. To reset to defaults, delete both files.
