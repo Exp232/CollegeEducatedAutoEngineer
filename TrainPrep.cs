@@ -43,6 +43,7 @@ namespace CollegeEducatedAutoEngineer
         {
             if (!Main.Active || ae == null || ae.Locomotive == null) return;
             if (!Main.Settings.PrepTrain && !Main.Settings.LogCarKeys) return;
+            if (ae.Locomotive.set == null) return;   // being moved with the car placement tool: it has no set (couplings) for now
 
             State s = States.GetOrCreateValue(ae);
             if (Time.time < s.Next) return;

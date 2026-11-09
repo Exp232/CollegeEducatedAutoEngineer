@@ -70,6 +70,7 @@ namespace CollegeEducatedAutoEngineer
             var settings = Main.Settings;
             if (!Main.Active || ae == null || ae.Locomotive == null) return;
             if (!settings.DoorsAtStations && !settings.ObservationHeadlight && !settings.AutoMarkers) return;
+            if (ae.Locomotive.set == null) return;   // being moved with the car placement tool: it has no set (couplings) for now
 
             State s = States.GetOrCreateValue(ae);
             if (Time.time < s.Next) return;

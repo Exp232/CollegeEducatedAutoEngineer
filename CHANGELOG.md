@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.2
+
+- **Fix: errors in the game log while moving cars with the placement tool.** A car being picked up and placed has no set (no couplings) for a moment, and the train preparation, the car key dump and the doors and lamps then threw "Object reference not set" from `Car.CoupledTo` (once per run in the log). They now skip the locomotive until it is back on the track.
+
 ## 1.3.1
 
 - **Fix: the position and G-force logging switched itself off at start-up.** The self-check looked for `Graph.GetPositionRotation(Location)`, but the game's method has an optional second parameter (`PositionAccuracy`), which is part of its signature, so the check reported the target missing and turned `LogGForces` off (and saving the settings window would have written that). The check now finds the method by its name and first parameter, and the same is done for `OpsController.ClosestAreaForGamePosition`. The meter itself was checked against a simulation of a curve, a grade and a steady acceleration: a right-hand curve at 15 m/s on a 200 m radius reads gY +0.115, a 2% grade reads gX +0.020, an acceleration of 0.5 m/s² reads gX +0.051, and standing level reads (0, 0, 1), forward and backward.
