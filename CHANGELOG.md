@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.6
+
+- **Everyone's `MarkerRedPosition` is set to 2 once.** 1.3.5 made 2 the default, but an existing `Settings.xml` (and the backup copy in `Documents\Railroader`) kept the 3 that older versions saved, so updating did not change it. The settings version is now 6, and a file older than that gets `MarkerRedPosition` reset to 2 the first time it is loaded, then the version is saved. If you had set it to another value on purpose (1 for a particular caboose, say), set it again in `Settings.xml` after the update; it is not reset again.
+
 ## 1.3.5
 
 - **`MarkerRedPosition` defaults to 2 again** (it was 3 since 1.1.7). 2 is the value that shows red on the locomotives and cabooses tested in game; a fresh install with 3 could show the wrong colour on them. An existing `Settings.xml` keeps its own value, so only new installs change. If a lamp still shows the wrong colour, set `MarkerRedPosition` (0 to 3) in both the mod folder copy and the backup copy in `Documents\Railroader`.
