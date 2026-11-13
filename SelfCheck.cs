@@ -67,6 +67,8 @@ namespace CollegeEducatedAutoEngineer
                 ["AutoEngineer.AverageTrainBrakeCylinder()"] = () => Method(AE, "AverageTrainBrakeCylinder", Type.EmptyTypes, typeof(float)),
                 ["AutoEngineer._targets"] = () => Field(AE, "_targets", Targets),
                 ["AutoEngineer._control"] = () => Field(AE, "_control", null),
+                ["AutoEngineer._lastState"] = () => Field(AE, "_lastState", null),
+                ["AutoEngineer.CalculateThrottleForTargetVelocityStarting(float, float, float)"] = () => Method(AE, "CalculateThrottleForTargetVelocityStarting", new[] { typeof(float), typeof(float), typeof(float) }, typeof(float)),
                 ["AutoEngineer._config"] = () => Field(AE, "_config", typeof(AutoEngineerConfig)),
                 ["AutoEngineer._debugContextualTargetVelocity"] = () => Field(AE, "_debugContextualTargetVelocity", typeof(float)),
                 ["Graph.GetPositionRotation(Location, ...), Graph.LocationToString(Location)"] =
@@ -288,6 +290,24 @@ namespace CollegeEducatedAutoEngineer
                     TurnOff = () => s.WaterStop = false,
                     Needs = new[] { "AutoEngineer.OnEnable()", "SteamLocomotive.FuelCar()", "AutoEngineerPlanner.Say(string)" },
                     Patches = new[] { typeof(AutoEngineer_OnEnable_Patch) },
+                },
+                new Feature
+                {
+                    Name = "Hill start spool-up",
+                    AlwaysPatch = true,
+                    On = () => s.HillStartSpoolUp,
+                    TurnOff = () => s.HillStartSpoolUp = false,
+                    Needs = new[] { "AutoEngineer.WaitingForBrakes", "AutoEngineer.ContextualTargetVelocity()", "AutoEngineer.CalculateThrottleForTargetVelocityStarting(float, float, float)", "AutoEngineer._targets", "AutoEngineer._control", "Targets.AverageGradeUnder" },
+                    Patches = new Type[0],
+                },
+                new Feature
+                {
+                    Name = "Direction change pause",
+                    AlwaysPatch = true,
+                    On = () => s.DirectionChangePauseSeconds > 0f,
+                    TurnOff = () => s.DirectionChangePauseSeconds = 0f,
+                    Needs = new[] { "AutoEngineer.StartMovement()", "AutoEngineer._targets", "AutoEngineer._control", "AutoEngineer._lastState", "Targets.AllTargets", "Targets.MaxSpeedMph" },
+                    Patches = new[] { typeof(AutoEngineer_StartMovement_Patch) },
                 },
                 new Feature
                 {

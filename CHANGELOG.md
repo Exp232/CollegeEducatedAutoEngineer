@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.3.3
+
+- **New: direction-change pause.** When the engineer is told to run the other way, it now stands still for at least 3 seconds (brakes held, throttle closed) before it moves off, and blows the stop blast first when the stock engineer skipped it. On a heavy train the engineer could go straight from the stop into the reverse (the planner already has the new direction's targets once the train is under about 1 mph), so the stop and its blast were skipped; the game's own start-up (brake release, forward or reverse whistle, reverser) then runs unchanged. Time the train has already stood counts, so a normal stop is not stretched. "Direction change pause" slider (0 = off, `DirectionChangePauseSeconds`) and "Blast before reversing" toggle (`DirectionChangeHorn`) in the settings window. Suggested by kalnaren.
+- **New: hill-start spool-up.** Starting on an upgrade, the stock engineer holds the train with the locomotive brake and only a holding throttle while the train brake releases, then lets go of the locomotive brake and only then sets the throttle it needs to start, so a locomotive that is barely strong enough is still spooling up while the train rolls back. While the engineer waits for the brakes (locomotive brake applied, reverser set, upgrade of 0.5% or more) the throttle is now raised to the start-up value the game would use the moment the brake lets go. "Hill start spool-up" toggle (`HillStartSpoolUp`; `HillStartMinGradePercent` in Settings.xml). Suggested by jackierudolph.
+- Waypoint Queue's newest commits (to 2.2.0-beta-1 and after) were checked: the route-profile hook and the speed-target handling the compatibility pass relies on are unchanged.
+
 ## 1.3.2
 
 - **Fix: errors in the game log while moving cars with the placement tool.** A car being picked up and placed has no set (no couplings) for a moment, and the train preparation, the car key dump and the doors and lamps then threw "Object reference not set" from `Car.CoupledTo` (once per run in the log). They now skip the locomotive until it is back on the track.

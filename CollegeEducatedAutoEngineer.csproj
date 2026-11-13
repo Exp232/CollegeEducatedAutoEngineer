@@ -56,7 +56,7 @@
   <Target Name="PackageRelease" AfterTargets="Build" Condition="'$(Package)' == 'true'">
     <PropertyGroup>
       <StageDir>$(MSBuildProjectDirectory)\dist\stage\CollegeEducatedAutoEngineer</StageDir>
-      <ReleaseVersion Condition="'$(ReleaseVersion)' == ''">1.3.2</ReleaseVersion>
+      <ReleaseVersion Condition="'$(ReleaseVersion)' == ''">1.3.3</ReleaseVersion>
     </PropertyGroup>
     <RemoveDir Directories="$(MSBuildProjectDirectory)\dist" />
     <MakeDir Directories="$(StageDir)" />

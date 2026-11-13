@@ -207,6 +207,26 @@ namespace CollegeEducatedAutoEngineer
         public float DirectionStopMinTrailingPercent = 50f;
 
         /// <summary>
+        /// When the engineer is told to run the other way, it holds the brakes with the throttle closed until the train has
+        /// stood still for this many seconds (time already stood counts) before it starts moving. 0 = off. Heavy trains could
+        /// otherwise go from the stop straight into the reverse.
+        /// </summary>
+        public float DirectionChangePauseSeconds = 3f;
+
+        /// <summary>Blow the stock stop blast (one short) at the start of the direction-change pause when the stock engineer skipped it.</summary>
+        public bool DirectionChangeHorn = true;
+
+        /// <summary>
+        /// Starting on an upgrade: while the engineer waits for the train brake to release (locomotive brake applied), raise the
+        /// throttle to the start-up value so the locomotive is already pulling when the brake lets go, instead of spooling up
+        /// while the train rolls back.
+        /// </summary>
+        public bool HillStartSpoolUp = true;
+
+        /// <summary>The upgrade (percent) from which the hill-start spool-up applies. Settings.xml only.</summary>
+        public float HillStartMinGradePercent = 0.5f;
+
+        /// <summary>
         /// Fuel saving, off at 0; 2 since 2.4.3 (0 before). When the train is no more than this many mph over its target, is not gaining speed and
         /// nothing ahead needs it to slow, the controller's first train-brake application is turned into a coast. Road mode
         /// and Waypoint modes. About 1-2% less coal on downhill running, nothing measurable uphill.

@@ -57,6 +57,7 @@ namespace CollegeEducatedAutoEngineer
         internal static void Register(AutoEngineer ae)
         {
             StallGuard.Reset(ae);
+            DirectionPause.Reset(ae);
         }
 
         internal static PidInfo ThrottleInfo(AutoEngineer ae)

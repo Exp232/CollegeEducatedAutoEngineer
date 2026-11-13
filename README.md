@@ -30,6 +30,12 @@ The stock AI can flip the throttle between 0 and 25% every half second (on 0.6 t
 - **No power into reductions**: with a lower speed limit (5 mph or more) in sight and the train already at or above it, the throttle is closed so the train coasts down before braking. Not applied on climbs steeper than 1.5% or below 5 mph.
 - **Stay stopped**: within 2.5 m of a stop target the AI now holds the stop; the stock AI can treat a train stopped 1-3 m short of a signal as "should be moving" and creep past it.
 
+## Direction-change pause (1.3.3)
+When the engineer is told to run the other way it stands still for at least `DirectionChangePauseSeconds` (3 by default, 0 = off; slider in the settings window) before moving off, with the brakes held and the throttle closed, and blows the stock stop blast first if the game skipped it (`DirectionChangeHorn`). Time the train has already stood counts. After the pause the game's own start-up runs (brake release, forward or reverse whistle, reverser).
+
+## Hill-start spool-up (1.3.3)
+Starting on an upgrade of `HillStartMinGradePercent` (0.5% by default, Settings.xml) or more, the throttle is raised to the start-up value while the engineer waits for the train brake to release with the locomotive brake still applied, so the locomotive is already pulling when the brake lets go (`HillStartSpoolUp`, toggle in the settings window).
+
 ## Gentle direction-change stop (0.6.0)
 Stopping a moving train with no speed order (changing direction, or a speed order of 0) now uses the train brake only: the locomotive (independent) brake is bailed off above 2 mph and only holds the train once it is nearly stopped (`DirectionStopTrainBrakeOnly`, also in the settings window).
 

@@ -83,6 +83,12 @@ namespace CollegeEducatedAutoEngineer
                     Note(b, "Closes the throttle when a lower limit is in sight and the train is already at that speed. Not applied on steep climbs.");
                     b.AddFieldToggle("Stop with the train brake", () => s.DirectionStopTrainBrakeOnly, v => { s.DirectionStopTrainBrakeOnly = v; Save(); });
                     Note(b, "Stopping a moving train with no speed order (changing direction, or a speed of 0) uses the train brake only; the locomotive brake holds the train once it is nearly stopped.");
+                    Slider(b, "Direction change pause", () => s.DirectionChangePauseSeconds, v => s.DirectionChangePauseSeconds = v, 0f, 15f, 1f,
+                        v => v <= 0f ? "off" : v.ToString("0") + " s");
+                    Note(b, "When the engineer is told to run the other way, it stands still at least this long (brakes held, throttle closed) before it moves off. A stop blast is blown first when the game skipped it.");
+                    b.AddFieldToggle("Blast before reversing", () => s.DirectionChangeHorn, v => { s.DirectionChangeHorn = v; Save(); });
+                    b.AddFieldToggle("Hill start spool-up", () => s.HillStartSpoolUp, v => { s.HillStartSpoolUp = v; Save(); });
+                    Note(b, "Starting on an upgrade, the throttle is raised while the brakes release, so the locomotive pulls the moment the locomotive brake lets go instead of rolling back while it spools up.");
                     Slider(b, "Locomotive brake use", () => s.PlanIndependentUseScale, v => s.PlanIndependentUseScale = v, 0f, 5f, 0.25f, Weight);
                     Note(b, "How much the planner dislikes using the locomotive brake. Higher = it slows with the train brake instead; 1 = the game's value.");
                 });
@@ -202,6 +208,9 @@ namespace CollegeEducatedAutoEngineer
             s.AutoMarkers = d.AutoMarkers;
             s.StallGuard = d.StallGuard;
             s.DirectionStopTrainBrakeOnly = d.DirectionStopTrainBrakeOnly;
+            s.DirectionChangePauseSeconds = d.DirectionChangePauseSeconds;
+            s.DirectionChangeHorn = d.DirectionChangeHorn;
+            s.HillStartSpoolUp = d.HillStartSpoolUp;
             s.SmoothThrottle = d.SmoothThrottle;
             s.GlideThrottle = d.GlideThrottle;
             s.SmoothDieselThrottle = d.SmoothDieselThrottle;

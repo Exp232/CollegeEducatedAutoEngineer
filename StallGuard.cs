@@ -364,6 +364,13 @@ namespace CollegeEducatedAutoEngineer
             return false;
         }
 
+        /// <summary>Direction-change pause (DirectionPause.cs) wraps the start-up routine; one patch class for the method keeps the self-check's patch count right.</summary>
+        private static void Postfix(AutoEngineer __instance, ref IEnumerator __result)
+        {
+            if (!Main.Active || StallGuard.IsLatched(__instance)) return;
+            __result = DirectionPause.Wrap(__instance, __result);
+        }
+
         private static IEnumerator Hold(AutoEngineer ae)
         {
             BrakeFix.WriteControl(ae, "Throttle", 0f);
