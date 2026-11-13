@@ -174,6 +174,7 @@ namespace CollegeEducatedAutoEngineer
             var ae = BrakeTaps.FAe?.GetValue(loop) as AutoEngineer;
             if (ae == null || ae.Locomotive == null || !BrakeGuidance.StopWithoutTarget(ae)) return false;
             command = new RolloutCommand(command.Kind, 0f, 0f, 1f, true, true, command.Cost, command.HoldCost);
+            RolloutThrottle.CloseFor(ae);
             return true;
         }
     }

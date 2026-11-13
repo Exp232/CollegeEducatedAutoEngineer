@@ -47,6 +47,22 @@ namespace CollegeEducatedAutoEngineer
             return false;
         }
 
+        /// <summary>
+        /// A filter ahead of this one took over the command (the direction-change stop), so Filter below did not run and
+        /// the remembered target would stay at its old value; the glider would keep easing the lever up toward it while
+        /// the controller pulls it down. Closes the filter the way a braking command does: target 0, not gliding.
+        /// </summary>
+        internal static void CloseFor(AutoEngineer ae)
+        {
+            if (ae == null) return;
+            PidInfo info = For(ae);
+            info.HasLast = true;
+            info.Last = 0f;
+            info.LastTime = Time.time;
+            info.Gliding = false;
+            info.Floor = 0f;
+        }
+
         /// <summary>Returns true when the command's throttle was changed.</summary>
         internal static bool Filter(object loop, ref RolloutCommand command)
         {

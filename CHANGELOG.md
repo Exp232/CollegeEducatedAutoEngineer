@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.7
+
+- **Fix: the throttle lever bounced for about a second at the start of a direction-change stop.** While the train is stopped with the train brake alone (changing direction, or a speed order of 0), that stop takes over the command before the throttle smoothing sees it, so the smoothing kept its old target (full throttle) and the glider eased the lever back up toward it while the controller pulled it down: in the logs the lever read 0.38, 0.70, 0.41, 0.71 and then 0 under a brake application at 16 mph. The smoothing is now closed (target 0, not gliding) when the direction stop takes over, the same as for any braking command.
+
 ## 1.3.6
 
 - **Everyone's `MarkerRedPosition` is set to 2 once.** 1.3.5 made 2 the default, but an existing `Settings.xml` (and the backup copy in `Documents\Railroader`) kept the 3 that older versions saved, so updating did not change it. The settings version is now 6, and a file older than that gets `MarkerRedPosition` reset to 2 the first time it is loaded, then the version is saved. If you had set it to another value on purpose (1 for a particular caboose, say), set it again in `Settings.xml` after the update; it is not reset again.
