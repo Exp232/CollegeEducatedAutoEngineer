@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.5
+
+- **`MarkerRedPosition` defaults to 2 again** (it was 3 since 1.1.7). 2 is the value that shows red on the locomotives and cabooses tested in game; a fresh install with 3 could show the wrong colour on them. An existing `Settings.xml` keeps its own value, so only new installs change. If a lamp still shows the wrong colour, set `MarkerRedPosition` (0 to 3) in both the mod folder copy and the backup copy in `Documents\Railroader`.
+
 ## 1.3.4
 
 - **Fix: the direction-change pause (1.3.3) made the game drop the engineer.** The game runs the engineer in its own scheduler, which only accepts waits made of `WaitForFixedUpdate`, nothing, or a nested routine, and the pause used `WaitForSeconds`, so the scheduler threw "AutoEngineerScheduler cannot yield on WaitForSeconds" and stopped the engineer the moment it tried to pause. The pause now waits in fixed-time steps. The stall guard's hold had the same `WaitForSeconds` and is fixed as well (it would have dropped the engineer the first time the guard latched).

@@ -293,7 +293,7 @@ namespace CollegeEducatedAutoEngineer
         public bool AutoMarkers = true;
 
         /// <summary>The marker lamp position (0 to 3, each a quarter turn of the lens) that shows red outward. Settings.xml only.</summary>
-        public int MarkerRedPosition = 3;
+        public int MarkerRedPosition = 2;
 
         /// <summary>Also write logs\fuel_summary_*.csv: coal, water and distance per engineer about once a minute, split by powered, coasting, braking and "both" (throttle open while braked), with brake applications counted.</summary>
         public bool LogFuelSummary = false;
