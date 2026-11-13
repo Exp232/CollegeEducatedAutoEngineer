@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.4
+
+- **Fix: the direction-change pause (1.3.3) made the game drop the engineer.** The game runs the engineer in its own scheduler, which only accepts waits made of `WaitForFixedUpdate`, nothing, or a nested routine, and the pause used `WaitForSeconds`, so the scheduler threw "AutoEngineerScheduler cannot yield on WaitForSeconds" and stopped the engineer the moment it tried to pause. The pause now waits in fixed-time steps. The stall guard's hold had the same `WaitForSeconds` and is fixed as well (it would have dropped the engineer the first time the guard latched).
+
 ## 1.3.3
 
 - **New: direction-change pause.** When the engineer is told to run the other way, it now stands still for at least 3 seconds (brakes held, throttle closed) before it moves off, and blows the stop blast first when the stock engineer skipped it. On a heavy train the engineer could go straight from the stop into the reverse (the planner already has the new direction's targets once the train is under about 1 mph), so the stop and its blast were skipped; the game's own start-up (brake release, forward or reverse whistle, reverser) then runs unchanged. Time the train has already stood counts, so a normal stop is not stretched. "Direction change pause" slider (0 = off, `DirectionChangePauseSeconds`) and "Blast before reversing" toggle (`DirectionChangeHorn`) in the settings window. Suggested by kalnaren.

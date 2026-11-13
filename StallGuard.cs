@@ -375,7 +375,7 @@ namespace CollegeEducatedAutoEngineer
         {
             BrakeFix.WriteControl(ae, "Throttle", 0f);
             StallGuard.ApplyHoldBrakes(ae);
-            yield return new WaitForSeconds(1f);
+            yield return DirectionPause.WaitFixed(1f);   // the scheduler does not accept WaitForSeconds
         }
     }
 }

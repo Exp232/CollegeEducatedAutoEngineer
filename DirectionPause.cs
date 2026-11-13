@@ -128,20 +128,30 @@ namespace CollegeEducatedAutoEngineer
             }
         }
 
+        /// <summary>
+        /// The engineer runs inside AutoEngineerScheduler, which only accepts WaitForFixedUpdate, null, a nested enumerator or a
+        /// BudgetRequest (WaitForSeconds throws and the engineer is dropped). This is a wait in fixed-time seconds made of those.
+        /// </summary>
+        internal static IEnumerator WaitFixed(float seconds)
+        {
+            float end = Time.fixedTime + seconds;
+            while (Time.fixedTime < end) yield return new WaitForFixedUpdate();
+        }
+
         private static IEnumerator Pause(AutoEngineer ae, IEnumerator original, float seconds, bool blast)
         {
-            float end = Time.time + seconds;
+            float end = Time.fixedTime + seconds;
             Hold(ae);
             if (blast)
             {
                 BrakeFix.WriteControl(ae, "Horn", 1f);
-                yield return new WaitForSeconds(BlastSeconds);
+                yield return WaitFixed(BlastSeconds);
                 BrakeFix.WriteControl(ae, "Horn", 0f);
             }
-            while (Time.time < end)
+            while (Time.fixedTime < end)
             {
                 Hold(ae);
-                yield return new WaitForSeconds(0.25f);
+                yield return WaitFixed(0.25f);
             }
             while (original.MoveNext()) yield return original.Current;
         }
