@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.9
+
+- Settings version 7: on first load after updating, the settings added in 1.3.x are reset once to their defaults for everyone (direction change pause 3 s, blast before reversing on, hill start spool-up on, hill start grade 0.5%, diesel notch guard on). Everything else is kept. Anyone who changed these deliberately will need to set them again.
+
 ## 1.3.8
 
 - **New: diesel notch guard.** Another mod that rounds a diesel's throttle lever to the nearest notch (reported with Beeman's throttle smoothing; Koeiss) kept the locomotive in the notch it was on: the smoothing wrote a value between notches (0.275), the lever read back as the notch (0.25), the smoothing took that as someone else's change and started over every tick, so a diesel sat in notch 2 for a minute while the controller asked for notch 3 on every tick. When a diesel's lever comes back as an exact notch four times after the mod wrote a value between notches, smoothing is switched off for that locomotive and the game's own notch goes through, with one log line. The stock lever is continuous, so this does not trigger without such a mod (checked against a stock diesel log and the reported one: it locks about 1.3 s into the reported run and never in the stock one). "Diesel notch guard" toggle in the settings window (`DieselNotchGuard`, on by default); "Smooth diesel throttle" still switches diesel smoothing off for everyone.

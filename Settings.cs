@@ -10,7 +10,7 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>Settings.xml layout version. Older files had features switched off by the start-up self-check (their PID targets were missing on 0.6); those are reset once.</summary>
         public int SettingsVersion = 0;
 
-        internal const int CurrentSettingsVersion = 6;
+        internal const int CurrentSettingsVersion = 7;
 
         // ---- Overspeed ----
 
@@ -399,6 +399,14 @@ namespace CollegeEducatedAutoEngineer
                         if (loaded.SettingsVersion < 4) loaded.StartingResistanceLbPerTon = d.StartingResistanceLbPerTon;   // 2.9.15: 7, no slider
                         if (loaded.SettingsVersion < 5) loaded.AutoMarkers = d.AutoMarkers;   // 1.1.6: on (it was a Settings.xml-only test switch)
                         if (loaded.SettingsVersion < 6) loaded.MarkerRedPosition = d.MarkerRedPosition;   // 1.3.6: 2, the value tested on the stock locomotives and cabooses (the default was 3 from 1.1.7 to 1.3.4)
+                        if (loaded.SettingsVersion < 7)   // 1.3.9: the 1.3.x features start from their defaults for everyone
+                        {
+                            loaded.DirectionChangePauseSeconds = d.DirectionChangePauseSeconds;
+                            loaded.DirectionChangeHorn = d.DirectionChangeHorn;
+                            loaded.HillStartSpoolUp = d.HillStartSpoolUp;
+                            loaded.HillStartMinGradePercent = d.HillStartMinGradePercent;
+                            loaded.DieselNotchGuard = d.DieselNotchGuard;
+                        }
                         loaded.SettingsVersion = CurrentSettingsVersion;
                         try { using (var w = File.Create(path)) serializer.Serialize(w, loaded); }
                         catch (Exception) { /* the next settings change saves it */ }
