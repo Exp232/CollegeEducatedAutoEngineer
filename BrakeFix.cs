@@ -61,9 +61,9 @@ namespace CollegeEducatedAutoEngineer
 
             float wn = written * 8f;
             float rn = read * 8f;
-            float diff = Mathf.Abs(read - written);
-            bool writtenOffNotch = Mathf.Abs(wn - Mathf.Round(wn)) > OffNotch;
-            bool readOnNotch = Mathf.Abs(rn - Mathf.Round(rn)) < OnNotch;
+            float diff = Math.Abs(read - written);
+            bool writtenOffNotch = Math.Abs(wn - (float)Math.Round(wn)) > OffNotch;
+            bool readOnNotch = Math.Abs(rn - (float)Math.Round(rn)) < OnNotch;
 
             if (writtenOffNotch && readOnNotch && diff > SameValue && diff < 0.125f) info.SnapCount++;
             else if (writtenOffNotch && diff <= SameValue) info.SnapCount = 0;   // a value between notches read back intact: the lever is continuous
