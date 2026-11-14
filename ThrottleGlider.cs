@@ -76,7 +76,8 @@ namespace CollegeEducatedAutoEngineer
             }
             else if (Mathf.Abs(current - info.Shown) > ExternalChange)
             {
-                // Someone else (the AI, the player) set the throttle: follow it and start over.
+                // Someone else (the AI, the player, a diesel notch mod rounding the lever) set the throttle: follow it and start over.
+                if (NotchGuard.Observe(info, info.Shown, current)) return;
                 info.Shown = current;
                 return;
             }

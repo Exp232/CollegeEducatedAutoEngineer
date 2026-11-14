@@ -30,6 +30,54 @@ namespace CollegeEducatedAutoEngineer
         // Gliding between AI ticks (see ThrottleGlider).
         public bool Gliding;
         public float Shown;
+
+        // Diesel notch guard (see NotchGuard): what the filter last handed the controller, and whether another mod snaps the lever.
+        public bool HasReturned;
+        public float Returned;
+        public float ReturnedTime;
+        public int SnapCount;
+        public bool NotchLocked;
+    }
+
+    /// <summary>
+    /// Another mod (a diesel notch or throttle mod) can round the throttle lever to the nearest notch the moment it is written. The
+    /// smoothing then writes 0.275, reads back 0.25, takes that as someone else's change and starts over each tick, so a diesel never
+    /// climbs past the notch it is on. When a diesel's lever keeps coming back as an exact notch after the mod wrote a value between
+    /// notches, smoothing is switched off for that engineer (the stock lever is continuous, so this never fires without such a mod).
+    /// </summary>
+    internal static class NotchGuard
+    {
+        private const float OffNotch = 0.1f;        // in notch units (0.125 of the lever): written value this far from a notch
+        private const float OnNotch = 0.02f;        // read-back this close to a notch
+        private const float SameValue = 0.004f;     // read-back equal to what was written
+        private const int SnapsToLock = 4;
+
+        /// <summary>True when smoothing is off for this engineer. Pass the value the mod wrote and the lever reading seen afterwards.</summary>
+        internal static bool Observe(PidInfo info, float written, float read)
+        {
+            if (info == null || !Main.Settings.DieselNotchGuard) return false;
+            if (info.NotchLocked) return true;
+            if (!(info.Engineer != null && info.Engineer.Locomotive is Model.DieselLocomotive)) return false;
+
+            float wn = written * 8f;
+            float rn = read * 8f;
+            float diff = Mathf.Abs(read - written);
+            bool writtenOffNotch = Mathf.Abs(wn - Mathf.Round(wn)) > OffNotch;
+            bool readOnNotch = Mathf.Abs(rn - Mathf.Round(rn)) < OnNotch;
+
+            if (writtenOffNotch && readOnNotch && diff > SameValue && diff < 0.125f) info.SnapCount++;
+            else if (writtenOffNotch && diff <= SameValue) info.SnapCount = 0;   // a value between notches read back intact: the lever is continuous
+
+            if (info.SnapCount >= SnapsToLock)
+            {
+                info.NotchLocked = true;
+                info.HasLast = false;
+                info.Gliding = false;
+                info.Floor = 0f;
+                Main.Mod.Logger.Log("Diesel throttle: the lever of " + info.Engineer.Locomotive.DisplayName + " snaps to the nearest notch after each write (another mod rounds it), so throttle smoothing is off for this engineer (logged once per engineer).");
+            }
+            return info.NotchLocked;
+        }
     }
 
     /// <summary>

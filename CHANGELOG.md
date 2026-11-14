@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.8
+
+- **New: diesel notch guard.** Another mod that rounds a diesel's throttle lever to the nearest notch (reported with Beeman's throttle smoothing; Koeiss) kept the locomotive in the notch it was on: the smoothing wrote a value between notches (0.275), the lever read back as the notch (0.25), the smoothing took that as someone else's change and started over every tick, so a diesel sat in notch 2 for a minute while the controller asked for notch 3 on every tick. When a diesel's lever comes back as an exact notch four times after the mod wrote a value between notches, smoothing is switched off for that locomotive and the game's own notch goes through, with one log line. The stock lever is continuous, so this does not trigger without such a mod (checked against a stock diesel log and the reported one: it locks about 1.3 s into the reported run and never in the stock one). "Diesel notch guard" toggle in the settings window (`DieselNotchGuard`, on by default); "Smooth diesel throttle" still switches diesel smoothing off for everyone.
+
 ## 1.3.7
 
 - **Fix: the throttle lever bounced for about a second at the start of a direction-change stop.** While the train is stopped with the train brake alone (changing direction, or a speed order of 0), that stop takes over the command before the throttle smoothing sees it, so the smoothing kept its old target (full throttle) and the glider eased the lever back up toward it while the controller pulled it down: in the logs the lever read 0.38, 0.70, 0.41, 0.71 and then 0 under a brake application at 16 mph. The smoothing is now closed (target 0, not gliding) when the direction stop takes over, the same as for any braking command.

@@ -66,6 +66,8 @@ namespace CollegeEducatedAutoEngineer
                     b.AddFieldToggle("Glide between updates", () => s.GlideThrottle, v => { s.GlideThrottle = v; Save(); });
                     b.AddFieldToggle("Smooth diesel throttle", () => s.SmoothDieselThrottle, v => { s.SmoothDieselThrottle = v; Save(); });
                     Note(b, "Switch off if another mod already smooths the diesel notch stepping (for example a diesel realism mod); two smoothers together can stop the engineer notching up.");
+                    b.AddFieldToggle("Diesel notch guard", () => s.DieselNotchGuard, v => { s.DieselNotchGuard = v; Save(); });
+                    Note(b, "If another mod rounds a diesel's throttle to the nearest notch, smoothing is switched off for that locomotive so it can still notch up.");
                 });
 
                 page.AddSection("Braking and speed limits", b =>
@@ -214,6 +216,7 @@ namespace CollegeEducatedAutoEngineer
             s.SmoothThrottle = d.SmoothThrottle;
             s.GlideThrottle = d.GlideThrottle;
             s.SmoothDieselThrottle = d.SmoothDieselThrottle;
+            s.DieselNotchGuard = d.DieselNotchGuard;
             s.SpeedReductionLeadSeconds = d.SpeedReductionLeadSeconds;
             s.StartingResistance = d.StartingResistance;
             s.StartingResistanceFadeMph = d.StartingResistanceFadeMph;

@@ -49,6 +49,12 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>Throttle smoothing on diesel locomotives. Switch off when another mod already smooths the diesel notch stepping (the two together can leave the lever lagging the controller).</summary>
         public bool SmoothDieselThrottle = true;
 
+        /// <summary>
+        /// Switch smoothing off for a diesel whose throttle lever is rounded to the nearest notch by another mod (the lever reads back as an exact
+        /// notch right after the mod wrote a value between notches); with both active the diesel stays in the notch it is on.
+        /// </summary>
+        public bool DieselNotchGuard = true;
+
         /// <summary>Stand still once within a couple of metres of a stop target instead of creeping past it.</summary>
         public bool HoldStopAtStopTargets = true;
 

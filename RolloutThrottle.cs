@@ -82,6 +82,25 @@ namespace CollegeEducatedAutoEngineer
                 return false;
             }
 
+            // Another mod rounds this diesel's lever to the notch: compare the lever with what was handed over last tick (nothing to
+            // compare after a long gap), and stay out of the way once it is known.
+            if (ae.Locomotive is Model.DieselLocomotive)
+            {
+                bool locked = info.NotchLocked;
+                if (!locked && info.HasReturned && Time.time - info.ReturnedTime < 1.5f)
+                {
+                    locked = NotchGuard.Observe(info, info.Returned, BrakeFix.ReadThrottle(ae));
+                }
+                if (locked)
+                {
+                    info.HasLast = false;
+                    info.Gliding = false;
+                    info.Floor = 0f;
+                    info.HasReturned = false;
+                    return false;
+                }
+            }
+
             // A command that brakes never keeps the throttle open: close it now and start the filter over.
             float applied = BrakeTaps.AppliedSet(loop);
             bool braking = command.IndependentBrake01 > 0.01f
@@ -118,6 +137,9 @@ namespace CollegeEducatedAutoEngineer
             // No slam: the rollout controller lowers the lever one notch (0.125) a tick and brakes by itself when it needs to,
             // so a mild overspeed (a falling target on a steep grade) must not take the throttle to zero.
             ThrottleSmoother.Apply(info, error, ref result, false);
+            info.Returned = result;
+            info.ReturnedTime = Time.time;
+            info.HasReturned = true;
             if (Mathf.Abs(result - command.ThrottleNotch) < 0.0005f) return false;
 
             command = new RolloutCommand(command.Kind, result, command.IndependentBrake01, command.TrainBrakeSet, command.DrivesTrainBrake, command.BailOff, command.Cost, command.HoldCost);
