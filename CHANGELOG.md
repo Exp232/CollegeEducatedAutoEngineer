@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.4.3
+
+- **Fix: the sand stopped only after the stall guard let go.** While the stall guard is latched (the train held with the brakes) the sand request is now switched off at once, and the slip guard's limit is dropped.
+- **The slip guard eases off at speed instead of slamming the throttle shut.** A slip must last 0.1 s at a crawl and up to 0.8 s from 15 mph before the guard acts, so a brief slip at speed is let go. The first cut is all of the throttle under 3 mph, falling to a tenth of the lever from 15 mph, and the ceiling then comes down at 4 per second at a crawl and 0.25 per second from 15 mph until the wheels grip. After the slip stops it waits 0.8 s (2 s from 15 mph) before the throttle comes back.
+- **Sanding lasts longer.** The engineer now sands while the wheels slip, for 15 s after the last slip, and for as long as the throttle is climbing back to the limit, then 6 s more. The speed it sands up to is 25 mph (`SlipSandMaxMph`, it was 15; the settings version is 8 and the saved value is reset once).
+
 ## 1.4.2
 
 - **Slip guard tests its limit less often.** The 1.4.1 test log (EMR 10, 835 t on a 1.3% grade) held the throttle at 0.47 and the train accelerated steadily, but every 20 s the limit was lifted at 0.1 per second, the wheels slipped again at about 0.53, and the tractive effort dropped for about 4 s (16 000 lbf to 12 000 and under). Now a slip that happens while the limit is being tested keeps the limit as it was and doubles the wait before the next test (20, 40, 80, up to 120 s); the wait starts over when the train has gained 4 mph since the last slip, or the limit is gone. A tested limit opens at 0.03 per second (it was 0.1). A slip at or under the limit still lowers it to 85%.

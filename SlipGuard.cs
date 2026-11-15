@@ -29,6 +29,7 @@ namespace CollegeEducatedAutoEngineer
             public int Slips;
             public float Memory = MemorySeconds;   // slip-free time before the limit is tested again; doubles after a test that slips
             public float SlipMph;                  // speed at the last slip
+            public float SlipSince = -1f;          // when the wheels started slipping (-1 = not slipping)
         }
 
         private static readonly ConditionalWeakTable<AutoEngineer, State> States = new ConditionalWeakTable<AutoEngineer, State>();
@@ -44,6 +45,10 @@ namespace CollegeEducatedAutoEngineer
         private const float ReleasePerSecond = 0.03f;    // how fast a tested limit opens
         private const float SpeedGainResets = 4f;        // mph gained since the last slip: adhesion needs have eased, start the memory over
         private const int LoggedSlips = 12;
+        private const float SandTailSeconds = 15f;       // keep sanding this long after the last slip, and while the throttle is coming back
+
+        /// <summary>0 at 3 mph and under, 1 from 15 mph: how much of a high-speed treatment a slip gets (a slip at speed is eased, not slammed).</summary>
+        private static float SpeedFactor(float mph) { return Mathf.Clamp01((mph - 3f) / 12f); }
 
         internal static bool Available { get { return FStates != null; } }
 
@@ -94,7 +99,22 @@ namespace CollegeEducatedAutoEngineer
             st.Next = now + TickInterval;
 
             float mph = loco.VelocityMphAbs;
-            bool slipping = IsSlipping(loco) && !StallGuard.IsLatched(ae);
+            if (StallGuard.IsLatched(ae))
+            {
+                // Held with the brakes: no sanding, no limit.
+                SlipSand.Release(ae, loco);
+                st.Ceiling = 1f;
+                st.Limit = 1f;
+                st.SlipSince = -1f;
+                st.WasSlipping = false;
+                return;
+            }
+
+            // A short slip at speed is let go: the longer the train is moving, the longer the slip must last before the throttle is touched.
+            bool raw = IsSlipping(loco);
+            if (!raw) st.SlipSince = -1f;
+            else if (st.SlipSince < 0f) st.SlipSince = now;
+            bool slipping = raw && now - st.SlipSince >= Mathf.Lerp(0.1f, 0.8f, SpeedFactor(mph));
 
             if (Main.Settings.SlipGuard)
             {
@@ -106,7 +126,10 @@ namespace CollegeEducatedAutoEngineer
                 st.Limit = 1f;
             }
 
-            if (Main.Settings.SlipSand) SlipSand.Update(ae, loco, slipping, mph, now);
+            // Sand while the wheels slip, for a while after, and while the throttle is coming back up to the limit.
+            bool wantSand = raw
+                || (Main.Settings.SlipGuard && st.Ceiling < 1f && (st.Ceiling < st.Limit || now - st.LastSlip < SandTailSeconds));
+            if (Main.Settings.SlipSand) SlipSand.Update(ae, loco, wantSand, mph, now);
             else SlipSand.Release(ae, loco);
 
             st.WasSlipping = slipping;
@@ -147,11 +170,16 @@ namespace CollegeEducatedAutoEngineer
                     }
                 }
                 st.LastSlip = now;
-                st.Ceiling = 0f;
+                // Closing is quick at a crawl and gentle at speed: first a cut of a tenth at speed (all of it under 3 mph), then down at 4 per
+                // second at a crawl or 0.25 per second at 15 mph and over until the wheels grip again.
+                float sf = SpeedFactor(mph);
+                float from = Mathf.Min(st.Ceiling, lever);
+                if (!st.WasSlipping) from = Mathf.Min(from, lever * 0.9f * sf);
+                st.Ceiling = Mathf.Max(0f, from - Mathf.Lerp(4f, 0.25f, sf) * dt);
             }
             else if (st.Ceiling < 1f)
             {
-                if (now - st.LastSlip >= ClearHoldSeconds)
+                if (now - st.LastSlip >= Mathf.Lerp(ClearHoldSeconds, 2f, SpeedFactor(mph)))
                 {
                     if (st.Ceiling < st.Limit)
                     {
@@ -220,7 +248,7 @@ namespace CollegeEducatedAutoEngineer
 
         private static readonly ConditionalWeakTable<AutoEngineer, State> States = new ConditionalWeakTable<AutoEngineer, State>();
 
-        private const float HoldSeconds = 12f;   // sand on this long after the last slip: the limit is tested while the sand is down
+        private const float HoldSeconds = 6f;    // sand on this long after the slip guard stopped asking for it
 
         private static bool _tried;
         private static MethodInfo _profile, _amount, _requestKey, _supportsAuto, _autoOn;
@@ -291,7 +319,7 @@ namespace CollegeEducatedAutoEngineer
             loco.KeyValueObject[key] = KeyValue.Runtime.Value.Bool(on);
         }
 
-        internal static void Update(AutoEngineer ae, BaseLocomotive loco, bool slipping, float mph, float now)
+        internal static void Update(AutoEngineer ae, BaseLocomotive loco, bool wanted, float mph, float now)
         {
             if (!Present || loco.KeyValueObject == null) return;
             State st = States.GetOrCreateValue(ae);
@@ -307,7 +335,7 @@ namespace CollegeEducatedAutoEngineer
                 float pounds = Convert.ToSingle(_amount.Invoke(null, new object[] { loco, profile }));
                 float maxMph = Main.Settings.SlipSandMaxMph;
 
-                if (slipping && mph <= maxMph && WheelslipSandsEngineers())
+                if (wanted && mph <= maxMph && WheelslipSandsEngineers())
                 {
                     if (pounds < 1f)
                     {

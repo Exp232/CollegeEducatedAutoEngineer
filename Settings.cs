@@ -10,7 +10,7 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>Settings.xml layout version. Older files had features switched off by the start-up self-check (their PID targets were missing on 0.6); those are reset once.</summary>
         public int SettingsVersion = 0;
 
-        internal const int CurrentSettingsVersion = 7;
+        internal const int CurrentSettingsVersion = 8;
 
         // ---- Overspeed ----
 
@@ -248,7 +248,7 @@ namespace CollegeEducatedAutoEngineer
         public bool SlipSand = true;
 
         /// <summary>Sand only up to this speed (mph). Settings.xml only.</summary>
-        public float SlipSandMaxMph = 15f;
+        public float SlipSandMaxMph = 25f;
 
         /// <summary>
         /// Fuel saving, off at 0; 2 since 2.4.3 (0 before). When the train is no more than this many mph over its target, is not gaining speed and
@@ -431,6 +431,7 @@ namespace CollegeEducatedAutoEngineer
                             loaded.HillStartMinGradePercent = d.HillStartMinGradePercent;
                             loaded.DieselNotchGuard = d.DieselNotchGuard;
                         }
+                        if (loaded.SettingsVersion < 8) loaded.SlipSandMaxMph = d.SlipSandMaxMph;   // 1.4.3: 25 (it was 15 in 1.4.0 to 1.4.2)
                         loaded.SettingsVersion = CurrentSettingsVersion;
                         try { using (var w = File.Create(path)) serializer.Serialize(w, loaded); }
                         catch (Exception) { /* the next settings change saves it */ }
