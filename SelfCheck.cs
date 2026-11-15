@@ -67,6 +67,7 @@ namespace CollegeEducatedAutoEngineer
                 ["AutoEngineer.AverageTrainBrakeCylinder()"] = () => Method(AE, "AverageTrainBrakeCylinder", Type.EmptyTypes, typeof(float)),
                 ["AutoEngineer._targets"] = () => Field(AE, "_targets", Targets),
                 ["AutoEngineer._control"] = () => Field(AE, "_control", null),
+                ["BaseLocomotive.DriverWheelStates"] = () => Field(typeof(BaseLocomotive), "DriverWheelStates", typeof(DriverWheelState[])),
                 ["AutoEngineer._lastState"] = () => Field(AE, "_lastState", null),
                 ["AutoEngineer.CalculateThrottleForTargetVelocityStarting(float, float, float)"] = () => Method(AE, "CalculateThrottleForTargetVelocityStarting", new[] { typeof(float), typeof(float), typeof(float) }, typeof(float)),
                 ["AutoEngineer._config"] = () => Field(AE, "_config", typeof(AutoEngineerConfig)),
@@ -298,6 +299,15 @@ namespace CollegeEducatedAutoEngineer
                     On = () => s.HillStartSpoolUp,
                     TurnOff = () => s.HillStartSpoolUp = false,
                     Needs = new[] { "AutoEngineer.WaitingForBrakes", "AutoEngineer.ContextualTargetVelocity()", "AutoEngineer.CalculateThrottleForTargetVelocityStarting(float, float, float)", "AutoEngineer._targets", "AutoEngineer._control", "Targets.AverageGradeUnder" },
+                    Patches = new Type[0],
+                },
+                new Feature
+                {
+                    Name = "Slip guard and slip sanding",
+                    AlwaysPatch = true,
+                    On = () => s.SlipGuard || s.SlipSand,
+                    TurnOff = () => { s.SlipGuard = false; s.SlipSand = false; },
+                    Needs = new[] { "BaseLocomotive.DriverWheelStates", "AutoEngineer._control" },
                     Patches = new Type[0],
                 },
                 new Feature

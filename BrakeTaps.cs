@@ -157,6 +157,7 @@ namespace CollegeEducatedAutoEngineer
                 bool tap = BrakeTaps.Filter(__instance, ref __0);
                 bool band = CoastBand.Filter(__instance, ref __0);
                 bool smooth = RolloutThrottle.Filter(__instance, ref __0);
+                smooth |= SlipGuard.Filter(__instance, ref __0);
                 CommandLog.Note(BrakeTaps.FAe?.GetValue(__instance) as AutoEngineer, before, __0, tap || hold, band, smooth);
             }
             catch (Exception e)

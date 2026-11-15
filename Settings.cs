@@ -233,6 +233,24 @@ namespace CollegeEducatedAutoEngineer
         public float HillStartMinGradePercent = 0.5f;
 
         /// <summary>
+        /// While a driver wheelset slips (the game's own slip state), close the throttle, then let it open again to a level just under the one
+        /// that slipped and lift that limit after a slip-free spell. Works with or without Wheelslip Prototype.
+        /// </summary>
+        public bool SlipGuard = true;
+
+        /// <summary>The slip guard stands down above this speed (mph). Settings.xml only.</summary>
+        public float SlipGuardMaxMph = 30f;
+
+        /// <summary>
+        /// Sand while the driver wheels slip, using Wheelslip Prototype's sand request (it must be installed, with its "Include AutoEngineer"
+        /// option on, and the locomotive needs sand). GP9 and SD7 have their own automatic sanding and are left to it.
+        /// </summary>
+        public bool SlipSand = true;
+
+        /// <summary>Sand only up to this speed (mph). Settings.xml only.</summary>
+        public float SlipSandMaxMph = 15f;
+
+        /// <summary>
         /// Fuel saving, off at 0; 2 since 2.4.3 (0 before). When the train is no more than this many mph over its target, is not gaining speed and
         /// nothing ahead needs it to slow, the controller's first train-brake application is turned into a coast. Road mode
         /// and Waypoint modes. About 1-2% less coal on downhill running, nothing measurable uphill.

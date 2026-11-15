@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.4.0
+
+- **New: slip guard** (`SlipGuard`, on by default; toggle in the settings window). When a driver wheelset of the engineer's locomotive slips (the game's own slip state, so it works with or without Wheelslip Prototype), the throttle is closed at once. Once the wheels grip again it opens back up slowly (0.15 per second after 0.8 s) to a limit of 85% of the level that slipped, and the limit is lifted after 20 s without slipping. The game only gives a slipping wheelset a tenth of its adhesion, so an engineer that kept the lever where it was kept spinning. The limit is applied to the controller's command and to the glider, and it is dropped above 30 mph (`SlipGuardMaxMph`, Settings.xml). Only the lead locomotive's wheels are watched.
+- **New: the engineer sands when the wheels slip** (`SlipSand`, on by default; toggle in the settings window). With Wheelslip Prototype installed and its "Include AutoEngineer" option on, the engineer switches the locomotive's sand request on while the wheels slip at up to 15 mph (`SlipSandMaxMph`, Settings.xml) and the locomotive has sand, and off again 4 s after the slip stops, when the sand runs out or the train goes faster. A request the player had already switched on is left alone. GP9 and SD7 have Wheelslip's own automatic sanding and are left to it. The game log says once when Wheelslip is found, when sanding starts and when the sand is empty.
+
 ## 1.3.11
 
 - **Marker lamp on a car's front end: `MarkerFrontLampTurns` is 3, not 2.** In the 1.3.10 test a backwards caboose with the half turn (position 0) still showed green, and one quarter turn on from there was red. A lamp at a car's front end now uses `MarkerRedPosition` + 3 quarter turns (position 1 with the default 2). Settings.xml only; 0 gives the old behaviour (every lamp at `MarkerRedPosition`).

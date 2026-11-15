@@ -28,6 +28,11 @@ namespace CollegeEducatedAutoEngineer
             _ae = GetComponent<AutoEngineer>();
         }
 
+        private void OnDisable()
+        {
+            try { SlipGuard.Release(_ae); } catch (Exception) { /* nothing to undo */ }
+        }
+
         private void Update()
         {
             if (_ae != null && Main.Active && _ae.isActiveAndEnabled)
@@ -36,6 +41,7 @@ namespace CollegeEducatedAutoEngineer
                 try { TrainLights.Tick(_ae); } catch (Exception e) { if (!_loggedLightsError) { _loggedLightsError = true; Main.Mod.Logger.Log("Doors and lamps error: " + e); } }
                 try { HillStart.Tick(_ae); } catch (Exception) { /* never let it break the frame */ }
                 try { DirectionPause.Tick(_ae); } catch (Exception) { /* never let it break the frame */ }
+                try { SlipGuard.Tick(_ae); } catch (Exception) { /* never let it break the frame */ }
                 try { TrainPrep.Tick(_ae); } catch (Exception e) { if (!_loggedPrepError) { _loggedPrepError = true; Main.Mod.Logger.Log("Train prep error: " + e.Message); } }
             }
             if (_ae == null || !Main.Active || StallGuard.IsLatched(_ae) || !Main.Settings.SmoothThrottle || !Main.Settings.GlideThrottle) return;
@@ -85,7 +91,7 @@ namespace CollegeEducatedAutoEngineer
             float dt = Mathf.Max(WriteInterval, Time.time - (_nextWrite - WriteInterval));
             _nextWrite = Time.time + WriteInterval;
 
-            float target = info.Last;
+            float target = Mathf.Min(info.Last, SlipGuard.Ceiling(_ae));
             float alpha = 1f - Mathf.Exp(-dt / GlideTimeConstant);
             float aim = Mathf.Clamp01(target + Mathf.Sign(target - info.Shown) * 0.02f);
             float y = info.Shown + alpha * (aim - info.Shown);

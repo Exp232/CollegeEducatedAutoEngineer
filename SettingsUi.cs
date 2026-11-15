@@ -91,6 +91,10 @@ namespace CollegeEducatedAutoEngineer
                     b.AddFieldToggle("Blast before reversing", () => s.DirectionChangeHorn, v => { s.DirectionChangeHorn = v; Save(); });
                     b.AddFieldToggle("Hill start spool-up", () => s.HillStartSpoolUp, v => { s.HillStartSpoolUp = v; Save(); });
                     Note(b, "Starting on an upgrade, the throttle is raised while the brakes release, so the locomotive pulls the moment the locomotive brake lets go instead of rolling back while it spools up.");
+                    b.AddFieldToggle("Slip guard", () => s.SlipGuard, v => { s.SlipGuard = v; Save(); });
+                    Note(b, "While the driver wheels slip the throttle is closed, then opened again to a level just under the one that slipped.");
+                    b.AddFieldToggle("Sand when slipping", () => s.SlipSand, v => { s.SlipSand = v; Save(); });
+                    Note(b, "Needs Wheelslip Prototype with its \"Include AutoEngineer\" option on. The engineer sands while the wheels slip at low speed, if the locomotive has sand.");
                     Slider(b, "Locomotive brake use", () => s.PlanIndependentUseScale, v => s.PlanIndependentUseScale = v, 0f, 5f, 0.25f, Weight);
                     Note(b, "How much the planner dislikes using the locomotive brake. Higher = it slows with the train brake instead; 1 = the game's value.");
                 });
@@ -217,6 +221,8 @@ namespace CollegeEducatedAutoEngineer
             s.GlideThrottle = d.GlideThrottle;
             s.SmoothDieselThrottle = d.SmoothDieselThrottle;
             s.DieselNotchGuard = d.DieselNotchGuard;
+            s.SlipGuard = d.SlipGuard;
+            s.SlipSand = d.SlipSand;
             s.SpeedReductionLeadSeconds = d.SpeedReductionLeadSeconds;
             s.StartingResistance = d.StartingResistance;
             s.StartingResistanceFadeMph = d.StartingResistanceFadeMph;
