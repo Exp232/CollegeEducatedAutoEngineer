@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.3.10
+
+- **Test build: marker lamp red on a caboose that trails backwards.** zulu354 found that red at position 2 works on the engine and the caboose as long as they point the right way, and that a caboose run behind the train without being turned shows green. The red lamp is the one at the car's trailing end; on a turned car that is the lamp at its front (F) end, which faces the other way to the lamp at its rear (R) end, so the same position showed another colour. A lamp at the car's front end now uses `MarkerRedPosition` plus `MarkerFrontLampTurns` quarter turns (2 by default, a half turn; `Settings.xml` only; 0 gives the old behaviour). The game log line now shows the position used for the rear lamp.
+
 ## 1.3.9
 
 - Settings version 7: on first load after updating, the settings added in 1.3.x are reset once to their defaults for everyone (direction change pause 3 s, blast before reversing on, hill start spool-up on, hill start grade 0.5%, diesel notch guard on). Everything else is kept. Anyone who changed these deliberately will need to set them again.

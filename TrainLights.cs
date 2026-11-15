@@ -549,6 +549,14 @@ namespace CollegeEducatedAutoEngineer
             return lamps;
         }
 
+        /// <summary>The position that shows red outward: a lamp at the car's front end faces the other way to one at its rear end, so it is turned by MarkerFrontLampTurns quarter turns.</summary>
+        private static int RedPositionFor(string lampKey)
+        {
+            int p = Main.Settings.MarkerRedPosition;
+            if (lampKey == "f") p += Main.Settings.MarkerFrontLampTurns;
+            return ((p % 4) + 4) % 4;
+        }
+
         private static void SetMarkers(Car loco, List<Car> cars, Car trailing, Car.LogicalEnd trailEnd)
         {
             int lamps = 0, off = 0, withLamps = 0;
@@ -564,14 +572,15 @@ namespace CollegeEducatedAutoEngineer
                     car.KeyValueObject["marker-" + lamp.Key + ".lit"] = KeyValue.Runtime.Value.Bool(isRear);
                     if (isRear)
                     {
-                        car.KeyValueObject["marker-" + lamp.Key + ".position"] = KeyValue.Runtime.Value.Int(Main.Settings.MarkerRedPosition);
-                        rear = car.DisplayName + " " + lamp.Key.ToUpperInvariant() + " end";
+                        int pos = RedPositionFor(lamp.Key);
+                        car.KeyValueObject["marker-" + lamp.Key + ".position"] = KeyValue.Runtime.Value.Int(pos);
+                        rear = car.DisplayName + " " + lamp.Key.ToUpperInvariant() + " end (position " + pos + ")";
                     }
                     else off++;
                 }
             }
             Main.Mod.Logger.Log($"Marker lamps for {loco.DisplayName}'s train ({cars.Count} cars, {withLamps} with marker lamps): "
-                + (rear != null ? $"red (position {Main.Settings.MarkerRedPosition}) on {rear}" : $"no marker lamp at the rear end of {(trailing != null ? trailing.DisplayName : "?")}, none lit")
+                + (rear != null ? $"red on {rear}" : $"no marker lamp at the rear end of {(trailing != null ? trailing.DisplayName : "?")}, none lit")
                 + $", {off} of {lamps} lamp(s) off.");
         }
     }
