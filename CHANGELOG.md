@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.5.0
+
+- **The slip guard works from the adhesion limit instead of remembering a throttle.** The 1.4.3 log showed why remembering fails: the limit it learned at a crawl (throttle 0.40) was far too low at 15 mph, where the same wheels slipped only at 0.75 to 1.0, because the effort a throttle setting makes falls with speed. The wheels slip when a wheelset's tractive effort is more than its weight on the drivers times the friction coefficient (`DriverWheelState.UpdateWheelslip`). The mod now works that limit out each tick: for every wheelset the adhesive weight times the coefficient, which is the game's curve `7.5/(km/h + 44) + 0.161`, then (with Wheelslip Prototype) the lower of that and Wheelslip's weather adhesion, plus its sand bonus while sanding, times its rail wear and burn-mark grip. The effort per unit of throttle (`k`) is measured as the train runs, and the throttle is held to `0.92 * limit / k` (`SlipMargin`, Settings.xml). The ceiling needs no slip to learn it, falls on a wet rail and rises by itself with speed.
+- **If the wheels slip anyway** (the rail turned slick, a burn mark), the throttle comes down to what a tenth of the limit allows, the level at which the game lets the wheels grip again, quickly at a crawl and gently at speed, then climbs back to the ceiling at 0.15 per second after a 0.8 s hold (2 s at speed). The slip log line now shows the effort and the limit in lbf.
+- **Sand is used when the train needs it.** The engineer sands when what the controller asks for (effort per throttle times its requested throttle) is more than dry rail carries and the sand would help, so a heavy start on a grade is sanded from the first second, with no slip first. It stops 8 s after the request has fallen to three quarters of the dry limit, and stays on for 15 s after any slip; while the stall guard holds the train it is off. A light train on a level, where the request is under the limit, uses no sand. With sand down the ceiling is worked out with the sand bonus.
+- `ae_*.csv` gains `adhLbf` (the dry adhesion limit) and `effLbf` (the tractive effort) beside `slip`, `slipCeil`, `sandOn` and `sandLb`.
+
 ## 1.4.3
 
 - **Fix: the sand stopped only after the stall guard let go.** While the stall guard is latched (the train held with the brakes) the sand request is now switched off at once, and the slip guard's limit is dropped.

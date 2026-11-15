@@ -238,6 +238,9 @@ namespace CollegeEducatedAutoEngineer
         /// </summary>
         public bool SlipGuard = true;
 
+        /// <summary>The slip guard keeps the tractive effort at this fraction of what the driver wheels carry before they slip. Settings.xml only.</summary>
+        public float SlipMargin = 0.92f;
+
         /// <summary>The slip guard stands down above this speed (mph). Settings.xml only.</summary>
         public float SlipGuardMaxMph = 30f;
 

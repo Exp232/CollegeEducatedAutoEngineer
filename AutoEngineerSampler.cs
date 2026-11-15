@@ -338,9 +338,9 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>slip: a driver wheelset slips now; slipCeil: the slip guard's throttle ceiling (1 = none); sandOn: the sand request is on; sandLb: sand left (Wheelslip Prototype).</summary>
         private void AddSlip(RowBuilder row)
         {
-            SlipGuard.Status(_ae, out bool slipping, out float ceiling);
+            SlipGuard.Status(_ae, out bool slipping, out float ceiling, out float limitLbf, out float effortLbf);
             SlipSand.Status(_ae, _ae.Locomotive as BaseLocomotive, out bool sandOn, out float sandLb);
-            row.Add("slip", slipping ? 1 : 0).Add("slipCeil", ceiling).Add("sandOn", sandOn ? 1 : 0).Add("sandLb", sandLb);
+            row.Add("slip", slipping ? 1 : 0).Add("slipCeil", ceiling).Add("sandOn", sandOn ? 1 : 0).Add("sandLb", sandLb).Add("adhLbf", limitLbf).Add("effLbf", effortLbf);
         }
 
         private bool SignalPlanning_Scan(bool forward, out float slowest, out float firstDrop, out string cause)

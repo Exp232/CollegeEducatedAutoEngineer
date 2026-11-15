@@ -5,16 +5,24 @@ using HarmonyLib;
 using Model;
 using Model.AI;
 using Model.AI.SpeedControl.Rollout;
+using Model.Physics;
 using UnityEngine;
 
 namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
-    /// Slip guard. A driver wheelset slips when the tractive effort is more than the adhesion allows (DriverWheelState.IsSlipping), and
-    /// once it slips the game only gives it a tenth of the adhesion until the effort falls below that, so an engineer that keeps the lever
-    /// where it was keeps spinning. This closes the throttle while any driver wheelset of the engineer's locomotive slips, then lets it open
-    /// again slowly to a level just under the one that slipped, and releases the limit once the train has run a while without slipping.
-    /// It uses the game's own slip state, so it works with or without Wheelslip Prototype.
+    /// Slip guard. A driver wheelset slips when its tractive effort is more than its weight on the driving wheels times the friction
+    /// coefficient (DriverWheelState.UpdateWheelslip); once it slips the game gives it only a tenth of that until the effort falls under
+    /// it, so a lever left where it was keeps spinning. The limit is known in advance, so the guard works it out instead of waiting for a slip:
+    ///
+    ///   limit = sum over the wheelsets of  AdhesiveWeight * mu
+    ///   mu    = the game's curve 7.5/(km/h + 44) + 0.161, then, with Wheelslip Prototype, the lower of that and its weather adhesion,
+    ///           plus its sand bonus while sanding, times its rail wear and burn-mark grip.
+    ///
+    /// The tractive effort follows the throttle (effort = k * lever, with k measured as the train runs and falling with speed), so the lever may
+    /// not go above  margin * limit / k.  That ceiling rises by itself as the train speeds up, needs no slip to learn it, and is lower on a wet
+    /// rail. If the wheels do slip anyway, the throttle comes down to a tenth of what the wheels can carry, which is where the game lets them grip
+    /// again, and then climbs back to the ceiling. The sanding decision uses the same numbers (see SlipSand).
     /// </summary>
     internal static class SlipGuard
     {
@@ -23,43 +31,49 @@ namespace CollegeEducatedAutoEngineer
             public float Next;
             public float LastTick;
             public float Ceiling = 1f;       // the throttle may not be above this (1 = no limit)
-            public float Limit = 1f;         // where the ceiling climbs to after a slip
             public float LastSlip = -100f;
             public bool WasSlipping;
+            public float SlipSince = -1f;    // when the wheels started slipping (-1 = not slipping)
             public int Slips;
-            public float Memory = MemorySeconds;   // slip-free time before the limit is tested again; doubles after a test that slips
-            public float SlipMph;                  // speed at the last slip
-            public float SlipSince = -1f;          // when the wheels started slipping (-1 = not slipping)
+            public float K;                  // tractive effort per unit of throttle (lbf), measured while the wheels grip
+            public float Demand;             // what the controller last asked for before the ceiling was applied
+            public float DemandTime = -100f;
+            public bool SandNeed;            // the train asks for more effort than dry rail carries
+            public float SandLowSince = -1f;
+            public float LimitNoSand;        // lbf, for the log
+            public float Effort;             // lbf, for the log
+            public bool LoggedLimit;
         }
 
         private static readonly ConditionalWeakTable<AutoEngineer, State> States = new ConditionalWeakTable<AutoEngineer, State>();
         private static readonly FieldInfo FStates = AccessTools.Field(typeof(BaseLocomotive), "DriverWheelStates");
 
         private const float TickInterval = 0.05f;
-        private const float ClearHoldSeconds = 0.8f;     // after the slip stops, stay closed this long
-        private const float ClimbPerSecond = 0.15f;      // then open this fast up to the limit
-        private const float LimitFactor = 0.85f;         // the limit is this fraction of the level that slipped
-        private const float MinLimit = 0.1f;
-        private const float MemorySeconds = 20f;         // slip-free time before the limit is first tested again
-        private const float MaxMemorySeconds = 120f;
-        private const float ReleasePerSecond = 0.03f;    // how fast a tested limit opens
-        private const float SpeedGainResets = 4f;        // mph gained since the last slip: adhesion needs have eased, start the memory over
+        private const float ClearHoldSeconds = 0.8f;    // after the slip stops, stay closed this long
+        private const float ClimbPerSecond = 0.15f;     // then open this fast up to the ceiling
+        private const float SlipRecoverFraction = 0.09f; // the game lets a slipping wheelset grip again under a tenth of its limit
+        private const float SandTailSeconds = 15f;      // keep sanding this long after the last slip
+        private const float SandOffFraction = 0.75f;    // the train asks for less than this much of the dry limit ...
+        private const float SandOffSeconds = 8f;        // ... for this long: sand off
         private const int LoggedSlips = 12;
-        private const float SandTailSeconds = 15f;       // keep sanding this long after the last slip, and while the throttle is coming back
 
         /// <summary>0 at 3 mph and under, 1 from 15 mph: how much of a high-speed treatment a slip gets (a slip at speed is eased, not slammed).</summary>
         private static float SpeedFactor(float mph) { return Mathf.Clamp01((mph - 3f) / 12f); }
 
         internal static bool Available { get { return FStates != null; } }
 
-        /// <summary>For the log: whether a driver wheelset slips now, and the throttle ceiling (1 = none).</summary>
-        internal static void Status(AutoEngineer ae, out bool slipping, out float ceiling)
+        /// <summary>For the log: whether a driver wheelset slips now, the throttle ceiling (1 = none), the adhesion limit without sand and the tractive effort (lbf).</summary>
+        internal static void Status(AutoEngineer ae, out bool slipping, out float ceiling, out float limitLbf, out float effortLbf)
         {
             slipping = false;
             ceiling = 1f;
+            limitLbf = float.NaN;
+            effortLbf = float.NaN;
             if (ae == null || !States.TryGetValue(ae, out State st)) return;
             slipping = st.WasSlipping;
             ceiling = st.Ceiling;
+            limitLbf = st.LimitNoSand;
+            effortLbf = st.Effort;
         }
 
         /// <summary>The throttle ceiling for this engineer, 1 when there is none.</summary>
@@ -69,9 +83,14 @@ namespace CollegeEducatedAutoEngineer
             return st.Ceiling;
         }
 
+        internal static DriverWheelState[] Wheels(BaseLocomotive loco)
+        {
+            return FStates?.GetValue(loco) as DriverWheelState[];
+        }
+
         internal static bool IsSlipping(BaseLocomotive loco)
         {
-            var wheels = FStates?.GetValue(loco) as DriverWheelState[];
+            var wheels = Wheels(loco);
             if (wheels == null) return false;
             for (int i = 0; i < wheels.Length; i++)
             {
@@ -104,7 +123,7 @@ namespace CollegeEducatedAutoEngineer
                 // Held with the brakes: no sanding, no limit.
                 SlipSand.Release(ae, loco);
                 st.Ceiling = 1f;
-                st.Limit = 1f;
+                st.SandNeed = false;
                 st.SlipSince = -1f;
                 st.WasSlipping = false;
                 return;
@@ -116,86 +135,112 @@ namespace CollegeEducatedAutoEngineer
             else if (st.SlipSince < 0f) st.SlipSince = now;
             bool slipping = raw && now - st.SlipSince >= Mathf.Lerp(0.1f, 0.8f, SpeedFactor(mph));
 
+            float lever = BrakeFix.ReadThrottle(ae);
+            float effort = Mathf.Abs(loco.TractiveEffort);
+            st.Effort = effort;
+
+            // Effort per unit of throttle, measured while the wheels grip (a slipping wheelset's effort is cut, so it says nothing).
+            if (!raw && lever > 0.05f && effort > 100f)
+            {
+                float k = effort / lever;
+                st.K = st.K <= 0f ? k : Mathf.Lerp(st.K, k, 1f - Mathf.Exp(-dt / 1f));
+            }
+
+            float limitNo, limitSand;
+            bool haveLimit = SlipSand.Limits(loco, out limitNo, out limitSand);
+            st.LimitNoSand = haveLimit ? limitNo : float.NaN;
+
+            // What the train is asking for, in lbf: the controller's own request when it is fresh, else the lever.
+            float demand = now - st.DemandTime < 1.5f ? Mathf.Max(lever, st.Demand) : lever;
+            float asked = st.K > 0f ? st.K * demand : effort;
+
+            // Sand only when the request is more than dry rail carries, and keep it a while after that has passed.
+            if (haveLimit && limitSand > limitNo * 1.02f && asked > Main.Settings.SlipMargin * limitNo)
+            {
+                st.SandNeed = true;
+                st.SandLowSince = -1f;
+            }
+            else if (st.SandNeed && (!haveLimit || asked < SandOffFraction * Main.Settings.SlipMargin * limitNo))
+            {
+                if (st.SandLowSince < 0f) st.SandLowSince = now;
+                if (now - st.SandLowSince > SandOffSeconds) st.SandNeed = false;
+            }
+            else
+            {
+                st.SandLowSince = -1f;
+            }
+
             if (Main.Settings.SlipGuard)
             {
-                Guard(ae, loco, st, slipping, mph, now, dt);
+                SlipSand.Status(ae, loco, out bool sandOn, out _);
+                Guard(ae, loco, st, slipping, mph, now, dt, lever, haveLimit ? (sandOn ? limitSand : limitNo) : float.NaN);
             }
             else
             {
                 st.Ceiling = 1f;
-                st.Limit = 1f;
             }
 
-            // Sand while the wheels slip, for a while after, and while the throttle is coming back up to the limit.
-            bool wantSand = raw
-                || (Main.Settings.SlipGuard && st.Ceiling < 1f && (st.Ceiling < st.Limit || now - st.LastSlip < SandTailSeconds));
+            // Sand while the wheels slip, for a while after, and while the train asks for more than dry rail carries.
+            bool wantSand = raw || st.SandNeed || (now - st.LastSlip < SandTailSeconds);
             if (Main.Settings.SlipSand) SlipSand.Update(ae, loco, wantSand, mph, now);
             else SlipSand.Release(ae, loco);
 
             st.WasSlipping = slipping;
         }
 
-        private static void Guard(AutoEngineer ae, BaseLocomotive loco, State st, bool slipping, float mph, float now, float dt)
+        private static void Guard(AutoEngineer ae, BaseLocomotive loco, State st, bool slipping, float mph, float now, float dt, float lever, float limit)
         {
-            if (mph > Main.Settings.SlipGuardMaxMph || StallGuard.IsLatched(ae))
+            if (mph > Main.Settings.SlipGuardMaxMph)
             {
                 st.Ceiling = 1f;
-                st.Limit = 1f;
                 return;
             }
 
-            float lever = BrakeFix.ReadThrottle(ae);
+            float sf = SpeedFactor(mph);
+            float target = 1f;
+            if (st.K > 0f && !float.IsNaN(limit))
+            {
+                target = Mathf.Clamp01((slipping ? SlipRecoverFraction : Main.Settings.SlipMargin) * limit / st.K);
+                if (target > 0.999f) target = 1f;
+            }
+            else if (slipping)
+            {
+                target = 0f;
+            }
+
             if (slipping)
             {
                 if (!st.WasSlipping)
                 {
-                    // A slip while the ceiling was being opened past the limit is a failed test of that limit, not a worse limit: keep the
-                    // limit and wait longer before the next test. A slip at or under the limit lowers it.
-                    bool test = st.Ceiling > st.Limit + 0.01f && st.Limit < 1f;
-                    float basis = st.Ceiling < 1f ? Mathf.Min(lever, Mathf.Max(st.Ceiling, MinLimit)) : lever;
-                    if (test)
-                    {
-                        st.Memory = Mathf.Min(MaxMemorySeconds, st.Memory * 2f);
-                    }
-                    else
-                    {
-                        st.Limit = Mathf.Min(st.Limit, Mathf.Max(MinLimit, basis * LimitFactor));
-                    }
-                    st.SlipMph = mph;
                     st.Slips++;
                     if (st.Slips <= LoggedSlips)
                     {
-                        Main.Mod.Logger.Log("Slip guard: " + loco.DisplayName + " slip " + st.Slips + " at throttle " + lever.ToString("0.00") + ", " + mph.ToString("0.0") + " mph" + (test ? " (a test of the limit)" : "")
-                            + "; limit " + st.Limit.ToString("0.00") + ", next test after " + st.Memory.ToString("0") + " s" + (st.Slips == LoggedSlips ? " (no more slips are logged for this engineer)" : "") + ".");
+                        Main.Mod.Logger.Log("Slip guard: " + loco.DisplayName + " slip " + st.Slips + " at throttle " + lever.ToString("0.00") + ", " + mph.ToString("0.0") + " mph; effort "
+                            + st.Effort.ToString("0") + " lbf" + (float.IsNaN(limit) ? "" : " of " + limit.ToString("0") + " lbf")
+                            + (st.Slips == LoggedSlips ? " (no more slips are logged for this engineer)" : "") + ".");
                     }
                 }
                 st.LastSlip = now;
                 // Closing is quick at a crawl and gentle at speed: first a cut of a tenth at speed (all of it under 3 mph), then down at 4 per
                 // second at a crawl or 0.25 per second at 15 mph and over until the wheels grip again.
-                float sf = SpeedFactor(mph);
                 float from = Mathf.Min(st.Ceiling, lever);
                 if (!st.WasSlipping) from = Mathf.Min(from, lever * 0.9f * sf);
-                st.Ceiling = Mathf.Max(0f, from - Mathf.Lerp(4f, 0.25f, sf) * dt);
+                st.Ceiling = Mathf.Max(target, from - Mathf.Lerp(4f, 0.25f, sf) * dt);
             }
-            else if (st.Ceiling < 1f)
+            else if (target < st.Ceiling)
             {
-                if (now - st.LastSlip >= Mathf.Lerp(ClearHoldSeconds, 2f, SpeedFactor(mph)))
+                // The limit is lower than the ceiling (a wet rail, a hill start): come down to it, quickly at a crawl and gently at speed.
+                st.Ceiling = Mathf.Max(target, st.Ceiling - Mathf.Lerp(2f, 0.5f, sf) * dt);
+                if (!st.LoggedLimit && target < 0.98f && lever > target + 0.02f)
                 {
-                    if (st.Ceiling < st.Limit)
-                    {
-                        st.Ceiling = Mathf.Min(st.Limit, st.Ceiling + ClimbPerSecond * dt);
-                    }
-                    else if (now - st.LastSlip > st.Memory)
-                    {
-                        if (mph > st.SlipMph + SpeedGainResets) st.Memory = MemorySeconds;
-                        st.Ceiling = Mathf.Min(1f, st.Ceiling + ReleasePerSecond * dt);
-                        if (st.Ceiling >= 1f)
-                        {
-                            st.Limit = 1f;
-                            st.Memory = MemorySeconds;
-                        }
-                    }
+                    st.LoggedLimit = true;
+                    Main.Mod.Logger.Log("Slip guard: " + loco.DisplayName + " is held to throttle " + target.ToString("0.00") + " (the wheels carry " + limit.ToString("0") + " lbf, the locomotive makes "
+                        + st.K.ToString("0") + " lbf per unit of throttle; logged once per engineer).");
                 }
+            }
+            else if (target > st.Ceiling && now - st.LastSlip >= Mathf.Lerp(ClearHoldSeconds, 2f, sf))
+            {
+                st.Ceiling = Mathf.Min(target, st.Ceiling + ClimbPerSecond * dt);
             }
 
             if (st.Ceiling < 1f && lever > st.Ceiling + 0.004f)
@@ -211,7 +256,7 @@ namespace CollegeEducatedAutoEngineer
             if (States.TryGetValue(ae, out State st))
             {
                 st.Ceiling = 1f;
-                st.Limit = 1f;
+                st.SandNeed = false;
                 st.WasSlipping = false;
             }
             var loco = ae.Locomotive as BaseLocomotive;
@@ -223,6 +268,12 @@ namespace CollegeEducatedAutoEngineer
         {
             if (!Main.Settings.SlipGuard) return false;
             var ae = BrakeTaps.FAe?.GetValue(loop) as AutoEngineer;
+            if (ae == null) return false;
+            if (States.TryGetValue(ae, out State st))
+            {
+                st.Demand = command.ThrottleNotch;     // what the controller wants, before the ceiling
+                st.DemandTime = Time.time;
+            }
             float ceiling = Ceiling(ae);
             if (ceiling >= 1f || command.ThrottleNotch <= ceiling + 0.0005f) return false;
             command = new RolloutCommand(command.Kind, ceiling, command.IndependentBrake01, command.TrainBrakeSet, command.DrivesTrainBrake, command.BailOff, command.Cost, command.HoldCost);
@@ -253,7 +304,8 @@ namespace CollegeEducatedAutoEngineer
         private static bool _tried;
         private static MethodInfo _profile, _amount, _requestKey, _supportsAuto, _autoOn;
         private static PropertyInfo _settingsCurrent;
-        private static FieldInfo _autoEngineerOption;
+        private static FieldInfo _autoEngineerOption, _adhesionMultiplier;
+        private static MethodInfo _weather, _railGrip, _burnGrip;
 
         internal static bool Present
         {
@@ -286,6 +338,10 @@ namespace CollegeEducatedAutoEngineer
                     Type settings = asm.GetType("WheelslipPrototype.SettingsRuntime");
                     _settingsCurrent = settings?.GetProperty("Current", f);
                     _autoEngineerOption = _settingsCurrent?.PropertyType.GetField("AutoEngineerEnabled", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    _adhesionMultiplier = _settingsCurrent?.PropertyType.GetField("AdhesionMultiplier", BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                    _weather = asm.GetType("WheelslipPrototype.WeatherAdhesion")?.GetMethod("Coefficient", f);
+                    _railGrip = sand?.GetMethod("RailGrip", f);
+                    _burnGrip = asm.GetType("WheelslipPrototype.WheelBurns")?.GetMethod("Grip", f);
                     Main.Mod.Logger.Log("Wheelslip Prototype found: " + (Present ? "the engineer can sand when the wheels slip." : "its sanding members were not found, so the engineer will not sand."));
                     return;
                 }
@@ -306,6 +362,56 @@ namespace CollegeEducatedAutoEngineer
                 return (bool)_autoEngineerOption.GetValue(current);
             }
             catch (Exception) { return true; }
+        }
+
+        /// <summary>
+        /// The most tractive effort (lbf) the driver wheels carry before they slip, without sand and with sand: for each wheelset its weight on the
+        /// drivers times the friction coefficient Wheelslip Prototype's wheel patch hands to DriverWheelState.UpdateWheelslip (or the game's own curve when
+        /// Wheelslip is not there or does not cover engineers).
+        /// </summary>
+        internal static bool Limits(BaseLocomotive loco, out float noSand, out float withSand)
+        {
+            noSand = 0f;
+            withSand = 0f;
+            try
+            {
+                DriverWheelState[] wheels = SlipGuard.Wheels(loco);
+                if (wheels == null || wheels.Length == 0) return false;
+
+                bool ws = Present && WheelslipSandsEngineers();
+                float weather = float.NaN, bonus = 0f, mult = 1f, c = 1f;
+                if (ws)
+                {
+                    if (_weather != null) weather = Convert.ToSingle(_weather.Invoke(null, new object[] { loco }));
+                    object profile = _profile.Invoke(null, new object[] { loco });
+                    if (profile != null)
+                    {
+                        FieldInfo fb = profile.GetType().GetField("adhesionBonus");
+                        if (fb != null) bonus = Convert.ToSingle(fb.GetValue(profile));
+                    }
+                    object current = _settingsCurrent?.GetValue(null, null);
+                    if (current != null && _adhesionMultiplier != null) mult = Convert.ToSingle(_adhesionMultiplier.GetValue(current));
+                    // Rail wear and burn marks scale the coefficient; the same factor holds for any coefficient.
+                    float scaled = 1f;
+                    if (_railGrip != null) scaled = Convert.ToSingle(_railGrip.Invoke(null, new object[] { loco, 1f }));
+                    if (_burnGrip != null) scaled = Convert.ToSingle(_burnGrip.Invoke(null, new object[] { loco, scaled }));
+                    c = scaled;
+                }
+
+                for (int i = 0; i < wheels.Length; i++)
+                {
+                    float mu = TrainMath.TrackCoefficientOfFriction(TrainMath.TrackCondition.Dry, wheels[i].WheelVelocity);
+                    if (ws && !float.IsNaN(weather)) mu = Mathf.Min(mu, weather);
+                    float muSand = ws && bonus > 0f ? Mathf.Min(0.35f * mult, mu + bonus * mult) : mu;
+                    noSand += wheels[i].AdhesiveWeight * mu * c;
+                    withSand += wheels[i].AdhesiveWeight * muSand * c;
+                }
+                return noSand > 1f;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
         }
 
         private static bool Requested(BaseLocomotive loco, string key)
