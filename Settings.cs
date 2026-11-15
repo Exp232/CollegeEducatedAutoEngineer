@@ -250,6 +250,12 @@ namespace CollegeEducatedAutoEngineer
         /// </summary>
         public bool SlipSand = true;
 
+        /// <summary>
+        /// Keep the train brake from locking the cars' wheels under Wheelslip Prototype's wagon brake law (needs Wheelslip Prototype with its wagon
+        /// brakes on): the brake is not applied further while a car's cylinders are near the lock line, and eased off when one is past it.
+        /// </summary>
+        public bool WagonLockGuard = true;
+
         /// <summary>Sand only up to this speed (mph). Settings.xml only.</summary>
         public float SlipSandMaxMph = 25f;
 

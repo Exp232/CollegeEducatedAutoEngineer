@@ -200,7 +200,16 @@ namespace CollegeEducatedAutoEngineer
             float target = 1f;
             if (st.K > 0f && !float.IsNaN(limit))
             {
-                target = Mathf.Clamp01((slipping ? SlipRecoverFraction : Main.Settings.SlipMargin) * limit / st.K);
+                float wanted = Main.Settings.SlipMargin * limit;
+                if (slipping)
+                {
+                    // A slipping wheelset gets a friction cap of 0.1 (absolute, not a tenth of its limit) until its effort is under it.
+                    DriverWheelState[] ws = Wheels(loco);
+                    float aw = 0f;
+                    if (ws != null) for (int i = 0; i < ws.Length; i++) aw += ws[i].AdhesiveWeight;
+                    wanted = aw > 1f ? SlipRecoverFraction * aw : SlipRecoverFraction * limit;
+                }
+                target = Mathf.Clamp01(wanted / st.K);
                 if (target > 0.999f) target = 1f;
             }
             else if (slipping)

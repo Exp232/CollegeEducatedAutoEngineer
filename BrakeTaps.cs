@@ -26,7 +26,7 @@ namespace CollegeEducatedAutoEngineer
         internal static readonly FieldInfo FAe = LoopType != null ? AccessTools.Field(LoopType, "_ae") : null;
         internal static readonly FieldInfo FTrainBrake = LoopType != null ? AccessTools.Field(LoopType, "_trainBrake") : null;
         internal static readonly FieldInfo FMeasuredAccel = LoopType != null ? AccessTools.Field(LoopType, "_measuredAccel") : null;
-        private static readonly PropertyInfo PApplied = BrakeGuidance.TrainBrakeType != null ? AccessTools.Property(BrakeGuidance.TrainBrakeType, "AppliedBrakeSet") : null;
+        internal static readonly PropertyInfo PApplied = BrakeGuidance.TrainBrakeType != null ? AccessTools.Property(BrakeGuidance.TrainBrakeType, "AppliedBrakeSet") : null;
         private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
         private static readonly FieldInfo FContextual = AccessTools.Field(typeof(AutoEngineer), "_debugContextualTargetVelocity");
         internal static FieldInfo FTargetsField => FTargets;
@@ -158,6 +158,7 @@ namespace CollegeEducatedAutoEngineer
                 bool band = CoastBand.Filter(__instance, ref __0);
                 bool smooth = RolloutThrottle.Filter(__instance, ref __0);
                 smooth |= SlipGuard.Filter(__instance, ref __0);
+                smooth |= WagonLock.Filter(__instance, ref __0);
                 CommandLog.Note(BrakeTaps.FAe?.GetValue(__instance) as AutoEngineer, before, __0, tap || hold, band, smooth);
             }
             catch (Exception e)

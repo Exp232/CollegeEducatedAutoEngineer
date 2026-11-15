@@ -312,6 +312,15 @@ namespace CollegeEducatedAutoEngineer
                 },
                 new Feature
                 {
+                    Name = "Car wheel lock guard",
+                    AlwaysPatch = true,
+                    On = () => s.WagonLockGuard,
+                    TurnOff = () => s.WagonLockGuard = false,
+                    Needs = new[] { "AutoEngineer._control" },
+                    Patches = new Type[0],
+                },
+                new Feature
+                {
                     Name = "Direction change pause",
                     AlwaysPatch = true,
                     On = () => s.DirectionChangePauseSeconds > 0f,

@@ -95,6 +95,8 @@ namespace CollegeEducatedAutoEngineer
                     Note(b, "While the driver wheels slip the throttle is closed, then opened again to a level just under the one that slipped.");
                     b.AddFieldToggle("Sand when slipping", () => s.SlipSand, v => { s.SlipSand = v; Save(); });
                     Note(b, "Needs Wheelslip Prototype with its \"Include AutoEngineer\" option on. The engineer sands while the wheels slip at low speed, if the locomotive has sand.");
+                    b.AddFieldToggle("Avoid car wheel lock", () => s.WagonLockGuard, v => { s.WagonLockGuard = v; Save(); });
+                    Note(b, "Needs Wheelslip Prototype with wagon brakes on. The train brake is not applied further while a car is near the point where its wheels would lock, and is eased off if one is past it.");
                     Slider(b, "Locomotive brake use", () => s.PlanIndependentUseScale, v => s.PlanIndependentUseScale = v, 0f, 5f, 0.25f, Weight);
                     Note(b, "How much the planner dislikes using the locomotive brake. Higher = it slows with the train brake instead; 1 = the game's value.");
                 });
@@ -228,6 +230,7 @@ namespace CollegeEducatedAutoEngineer
             s.DieselNotchGuard = d.DieselNotchGuard;
             s.SlipGuard = d.SlipGuard;
             s.SlipSand = d.SlipSand;
+            s.WagonLockGuard = d.WagonLockGuard;
             s.SpeedReductionLeadSeconds = d.SpeedReductionLeadSeconds;
             s.StartingResistance = d.StartingResistance;
             s.StartingResistanceFadeMph = d.StartingResistanceFadeMph;
