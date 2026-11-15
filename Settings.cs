@@ -303,9 +303,9 @@ namespace CollegeEducatedAutoEngineer
 
         /// <summary>
         /// Quarter turns added to MarkerRedPosition for a lamp at the car's front (F) end, which faces the opposite way to a lamp at the rear (R) end, so a car that
-        /// trails the train backwards (a caboose not turned round) still shows red outward. 2 = a half turn. 0 = off (every lamp uses MarkerRedPosition). Settings.xml only.
+        /// trails the train backwards (a caboose not turned round) still shows red outward. 3 = a quarter turn back (tested: the lamp needed one quarter turn from the half turn). 0 = off (every lamp uses MarkerRedPosition). Settings.xml only.
         /// </summary>
-        public int MarkerFrontLampTurns = 2;
+        public int MarkerFrontLampTurns = 3;
 
         /// <summary>Also write logs\fuel_summary_*.csv: coal, water and distance per engineer about once a minute, split by powered, coasting, braking and "both" (throttle open while braked), with brake applications counted.</summary>
         public bool LogFuelSummary = false;
