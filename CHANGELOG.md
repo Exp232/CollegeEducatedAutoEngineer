@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.4.1
+
+- **Testing button: "Fill sand tank (selected locomotive)"** in the settings window's Diagnostics and testing section, shown only when Wheelslip Prototype is installed. It sets the selected locomotive's stored sand to the capacity of its Wheelslip sand profile, so sanding can be tested without delivering sand. The result is logged.
+
 ## 1.4.0
 
 - **New: slip guard** (`SlipGuard`, on by default; toggle in the settings window). When a driver wheelset of the engineer's locomotive slips (the game's own slip state, so it works with or without Wheelslip Prototype), the throttle is closed at once. Once the wheels grip again it opens back up slowly (0.15 per second after 0.8 s) to a limit of 85% of the level that slipped, and the limit is lifted after 20 s without slipping. The game only gives a slipping wheelset a tenth of its adhesion, so an engineer that kept the lever where it was kept spinning. The limit is applied to the controller's command and to the glider, and it is dropped above 30 mph (`SlipGuardMaxMph`, Settings.xml). Only the lead locomotive's wheels are watched.

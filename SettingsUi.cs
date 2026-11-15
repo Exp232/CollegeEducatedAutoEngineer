@@ -157,6 +157,11 @@ namespace CollegeEducatedAutoEngineer
                     b.AddFieldToggle("Position and G forces", () => s.LogGForces, v => { s.LogGForces = v; Save(); });
                     Note(b, "Adds the locomotive's map position, track location and nearest area, and the G forces on it (forward, right, up).");
                     Note(b, "The sub-options only matter while the diagnostic log is on.");
+                    if (SlipSand.Present)
+                    {
+                        b.AddButton("Fill sand tank (selected locomotive)", SlipSand.FillSelected);
+                        Note(b, "For testing sanding with Wheelslip Prototype: fills the selected locomotive's sand tank to its capacity.");
+                    }
                 });
 
                 page.AddSection("", b =>

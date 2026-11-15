@@ -314,6 +314,26 @@ namespace CollegeEducatedAutoEngineer
             }
         }
 
+        /// <summary>Testing: fills the sand tank of the selected locomotive to its capacity (Wheelslip Prototype's stored amount).</summary>
+        internal static void FillSelected()
+        {
+            try
+            {
+                if (!Present) { Main.Mod.Logger.Log("Fill sand: Wheelslip Prototype was not found."); return; }
+                var loco = TrainController.Shared != null ? TrainController.Shared.SelectedLocomotive : null;
+                if (loco == null || loco.KeyValueObject == null) { Main.Mod.Logger.Log("Fill sand: no locomotive is selected."); return; }
+                object profile = _profile.Invoke(null, new object[] { loco });
+                if (profile == null) { Main.Mod.Logger.Log("Fill sand: " + loco.DisplayName + " has no sand profile in Wheelslip."); return; }
+                float capacity = Convert.ToSingle(profile.GetType().GetField("capacityPounds").GetValue(profile));
+                loco.KeyValueObject["wheelslip.sand.pounds.v1"] = KeyValue.Runtime.Value.Float(capacity);
+                Main.Mod.Logger.Log("Fill sand: " + loco.DisplayName + " now has " + capacity.ToString("0") + " lb of sand.");
+            }
+            catch (Exception e)
+            {
+                Main.Mod.Logger.Log("Fill sand failed: " + e.Message);
+            }
+        }
+
         /// <summary>Switches the sand off again if this engineer switched it on.</summary>
         internal static void Release(AutoEngineer ae, BaseLocomotive loco)
         {
