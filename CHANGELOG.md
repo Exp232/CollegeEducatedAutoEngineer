@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.4.2
+
+- **Slip guard tests its limit less often.** The 1.4.1 test log (EMR 10, 835 t on a 1.3% grade) held the throttle at 0.47 and the train accelerated steadily, but every 20 s the limit was lifted at 0.1 per second, the wheels slipped again at about 0.53, and the tractive effort dropped for about 4 s (16 000 lbf to 12 000 and under). Now a slip that happens while the limit is being tested keeps the limit as it was and doubles the wait before the next test (20, 40, 80, up to 120 s); the wait starts over when the train has gained 4 mph since the last slip, or the limit is gone. A tested limit opens at 0.03 per second (it was 0.1). A slip at or under the limit still lowers it to 85%.
+- **The engineer keeps sanding for 12 s after the last slip** (it was 4 s), so the limit is tested while the sand is down.
+- The game log lists each slip (first 12 per engineer) with the throttle, speed, limit and the wait before the next test.
+- `ae_*.csv` has four new columns: `slip` (a driver wheelset slips), `slipCeil` (the throttle ceiling, 1 = none), `sandOn` (the sand request is on) and `sandLb` (sand left, Wheelslip Prototype).
+
 ## 1.4.1
 
 - **Testing button: "Fill sand tank (selected locomotive)"** in the settings window's Diagnostics and testing section, shown only when Wheelslip Prototype is installed. It sets the selected locomotive's stored sand to the capacity of its Wheelslip sand profile, so sanding can be tested without delivering sand. The result is logged.

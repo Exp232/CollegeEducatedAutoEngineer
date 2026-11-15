@@ -26,7 +26,9 @@ namespace CollegeEducatedAutoEngineer
             public float Limit = 1f;         // where the ceiling climbs to after a slip
             public float LastSlip = -100f;
             public bool WasSlipping;
-            public bool LoggedSlip;
+            public int Slips;
+            public float Memory = MemorySeconds;   // slip-free time before the limit is tested again; doubles after a test that slips
+            public float SlipMph;                  // speed at the last slip
         }
 
         private static readonly ConditionalWeakTable<AutoEngineer, State> States = new ConditionalWeakTable<AutoEngineer, State>();
@@ -37,10 +39,23 @@ namespace CollegeEducatedAutoEngineer
         private const float ClimbPerSecond = 0.15f;      // then open this fast up to the limit
         private const float LimitFactor = 0.85f;         // the limit is this fraction of the level that slipped
         private const float MinLimit = 0.1f;
-        private const float MemorySeconds = 20f;         // slip-free time before the limit is lifted
-        private const float ReleasePerSecond = 0.1f;
+        private const float MemorySeconds = 20f;         // slip-free time before the limit is first tested again
+        private const float MaxMemorySeconds = 120f;
+        private const float ReleasePerSecond = 0.03f;    // how fast a tested limit opens
+        private const float SpeedGainResets = 4f;        // mph gained since the last slip: adhesion needs have eased, start the memory over
+        private const int LoggedSlips = 12;
 
         internal static bool Available { get { return FStates != null; } }
+
+        /// <summary>For the log: whether a driver wheelset slips now, and the throttle ceiling (1 = none).</summary>
+        internal static void Status(AutoEngineer ae, out bool slipping, out float ceiling)
+        {
+            slipping = false;
+            ceiling = 1f;
+            if (ae == null || !States.TryGetValue(ae, out State st)) return;
+            slipping = st.WasSlipping;
+            ceiling = st.Ceiling;
+        }
 
         /// <summary>The throttle ceiling for this engineer, 1 when there is none.</summary>
         internal static float Ceiling(AutoEngineer ae)
@@ -111,12 +126,24 @@ namespace CollegeEducatedAutoEngineer
             {
                 if (!st.WasSlipping)
                 {
+                    // A slip while the ceiling was being opened past the limit is a failed test of that limit, not a worse limit: keep the
+                    // limit and wait longer before the next test. A slip at or under the limit lowers it.
+                    bool test = st.Ceiling > st.Limit + 0.01f && st.Limit < 1f;
                     float basis = st.Ceiling < 1f ? Mathf.Min(lever, Mathf.Max(st.Ceiling, MinLimit)) : lever;
-                    st.Limit = Mathf.Min(st.Limit, Mathf.Max(MinLimit, basis * LimitFactor));
-                    if (!st.LoggedSlip)
+                    if (test)
                     {
-                        st.LoggedSlip = true;
-                        Main.Mod.Logger.Log("Slip guard: " + loco.DisplayName + " slipped at throttle " + lever.ToString("0.00") + "; the throttle is closed and then limited to " + st.Limit.ToString("0.00") + " until it has run clear for a while (logged once per engineer).");
+                        st.Memory = Mathf.Min(MaxMemorySeconds, st.Memory * 2f);
+                    }
+                    else
+                    {
+                        st.Limit = Mathf.Min(st.Limit, Mathf.Max(MinLimit, basis * LimitFactor));
+                    }
+                    st.SlipMph = mph;
+                    st.Slips++;
+                    if (st.Slips <= LoggedSlips)
+                    {
+                        Main.Mod.Logger.Log("Slip guard: " + loco.DisplayName + " slip " + st.Slips + " at throttle " + lever.ToString("0.00") + ", " + mph.ToString("0.0") + " mph" + (test ? " (a test of the limit)" : "")
+                            + "; limit " + st.Limit.ToString("0.00") + ", next test after " + st.Memory.ToString("0") + " s" + (st.Slips == LoggedSlips ? " (no more slips are logged for this engineer)" : "") + ".");
                     }
                 }
                 st.LastSlip = now;
@@ -130,10 +157,15 @@ namespace CollegeEducatedAutoEngineer
                     {
                         st.Ceiling = Mathf.Min(st.Limit, st.Ceiling + ClimbPerSecond * dt);
                     }
-                    else if (now - st.LastSlip > MemorySeconds)
+                    else if (now - st.LastSlip > st.Memory)
                     {
+                        if (mph > st.SlipMph + SpeedGainResets) st.Memory = MemorySeconds;
                         st.Ceiling = Mathf.Min(1f, st.Ceiling + ReleasePerSecond * dt);
-                        if (st.Ceiling >= 1f) st.Limit = 1f;
+                        if (st.Ceiling >= 1f)
+                        {
+                            st.Limit = 1f;
+                            st.Memory = MemorySeconds;
+                        }
                     }
                 }
             }
@@ -188,7 +220,7 @@ namespace CollegeEducatedAutoEngineer
 
         private static readonly ConditionalWeakTable<AutoEngineer, State> States = new ConditionalWeakTable<AutoEngineer, State>();
 
-        private const float HoldSeconds = 4f;
+        private const float HoldSeconds = 12f;   // sand on this long after the last slip: the limit is tested while the sand is down
 
         private static bool _tried;
         private static MethodInfo _profile, _amount, _requestKey, _supportsAuto, _autoOn;
@@ -332,6 +364,22 @@ namespace CollegeEducatedAutoEngineer
             {
                 Main.Mod.Logger.Log("Fill sand failed: " + e.Message);
             }
+        }
+
+        /// <summary>For the log: whether this engineer has the sand request on, and the sand left (lb, NaN when unknown).</summary>
+        internal static void Status(AutoEngineer ae, BaseLocomotive loco, out bool on, out float pounds)
+        {
+            on = false;
+            pounds = float.NaN;
+            try
+            {
+                if (!Present || loco == null || loco.KeyValueObject == null) return;
+                object profile = _profile.Invoke(null, new object[] { loco });
+                if (profile == null) return;
+                pounds = Convert.ToSingle(_amount.Invoke(null, new object[] { loco, profile }));
+                on = Requested(loco, (string)_requestKey.Invoke(null, new object[] { profile }));
+            }
+            catch (Exception) { /* leave the defaults */ }
         }
 
         /// <summary>Switches the sand off again if this engineer switched it on.</summary>
