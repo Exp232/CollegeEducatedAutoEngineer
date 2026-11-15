@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.2
+
+- **Fix: the slip guard stayed put while the rail under it got worse.** In the 1.5.1 log the standing start slipped for 11 s with the ceiling stuck at 0.43: burn marks the engine had made on the rail at that spot cut the wheels' limit from 17.2k to 12.4k lbf, but while slipping the guard aimed at the game's recovery level (0.09 times the drivers' weight), which is about the same as the limit, so it never went lower. While slipping it now aims at the lower of that level and 0.85 of the margin level of the current limit.
+- **Less sand at speed.** In that log the sand ran for the whole 16 to 25 mph run at full throttle (about 1.2 lb/s). It went down because the request (effort per throttle times the throttle asked for) was over the dry limit, which at 16 to 22 mph it is by 5 to 15 %. Below 8 mph nothing changes (sand as soon as the request passes dry rail). From 8 mph the sand goes down only after a slip, or when the request is more than 15 % past the dry limit; the slip guard holds the throttle to the dry limit the rest of the time. The after-slip tail shortens from 15 s to 6 s as the speed goes from 8 to 16 mph.
+
 ## 1.5.1
 
 - **New: the engineer no longer locks the cars' wheels when it brakes (Wheelslip Prototype's wagon brakes).** Wheelslip locks a car's wheels when its braking force is more than 1.02 times the car's weight times the rail's friction coefficient; the force is the cylinder fraction times the car's brake rating times the game's brake-force curve, which rises as the train slows, so a train braked down to 5 mph and below crossed the line on the way to a stop and slid. The mod now works the line out for every car (the car's own `CalculateBrakingForce`, Wheelslip's weather adhesion and rail grip) and, once the worst car's cylinders reach 85 % of it, stops applying the train brake further; above 105 % it eases the brake off. The brake force curve is read at 1.5 m/s under the current speed so the rise toward a stop is allowed for. Setting `WagonLockGuard` (window: "Avoid car wheel lock"); it does nothing without Wheelslip Prototype or with its wagon brakes off.

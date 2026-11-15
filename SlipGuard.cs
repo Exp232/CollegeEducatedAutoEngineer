@@ -52,7 +52,10 @@ namespace CollegeEducatedAutoEngineer
         private const float ClearHoldSeconds = 0.8f;    // after the slip stops, stay closed this long
         private const float ClimbPerSecond = 0.15f;     // then open this fast up to the ceiling
         private const float SlipRecoverFraction = 0.09f; // the game lets a slipping wheelset grip again under a tenth of its limit
-        private const float SandTailSeconds = 15f;      // keep sanding this long after the last slip
+        private const float SandTailSeconds = 15f;      // keep sanding this long after the last slip (at a crawl)
+        private const float SandProactiveMph = 8f;      // below this the sand goes down as soon as the request passes the dry limit
+        private const float SandRollingFactor = 1.15f;  // above it, only when the request is this far past the dry limit (or after a slip)
+        private static float SandTail(float mph) { return Mathf.Lerp(SandTailSeconds, 6f, Mathf.Clamp01((mph - SandProactiveMph) / 8f)); }
         private const float SandOffFraction = 0.75f;    // the train asks for less than this much of the dry limit ...
         private const float SandOffSeconds = 8f;        // ... for this long: sand off
         private const int LoggedSlips = 12;
@@ -155,7 +158,12 @@ namespace CollegeEducatedAutoEngineer
             float asked = st.K > 0f ? st.K * demand : effort;
 
             // Sand only when the request is more than dry rail carries, and keep it a while after that has passed.
-            if (haveLimit && limitSand > limitNo * 1.02f && asked > Main.Settings.SlipMargin * limitNo)
+            // Above a crawl the sand goes down when the wheels have slipped lately, or when the request is well past dry rail (the rail's grip, not the
+            // lever, decides): full throttle alone is no reason to sand a train that is already rolling.
+            bool crawl = mph < SandProactiveMph;
+            bool recent = now - st.LastSlip < SandTail(mph);
+            float needAt = crawl ? Main.Settings.SlipMargin : SandRollingFactor;
+            if (haveLimit && limitSand > limitNo * 1.02f && asked > needAt * limitNo && (crawl || recent || asked > SandRollingFactor * limitNo))
             {
                 st.SandNeed = true;
                 st.SandLowSince = -1f;
@@ -181,7 +189,7 @@ namespace CollegeEducatedAutoEngineer
             }
 
             // Sand while the wheels slip, for a while after, and while the train asks for more than dry rail carries.
-            bool wantSand = raw || st.SandNeed || (now - st.LastSlip < SandTailSeconds);
+            bool wantSand = raw || st.SandNeed || (now - st.LastSlip < SandTail(mph));
             if (Main.Settings.SlipSand) SlipSand.Update(ae, loco, wantSand, mph, now);
             else SlipSand.Release(ae, loco);
 
@@ -208,6 +216,8 @@ namespace CollegeEducatedAutoEngineer
                     float aw = 0f;
                     if (ws != null) for (int i = 0; i < ws.Length; i++) aw += ws[i].AdhesiveWeight;
                     wanted = aw > 1f ? SlipRecoverFraction * aw : SlipRecoverFraction * limit;
+                    // The limit itself can sit lower than that (burn marks on the rail, a wet rail): never aim above a level the wheels can carry.
+                    wanted = Mathf.Min(wanted, 0.85f * Main.Settings.SlipMargin * limit);
                 }
                 target = Mathf.Clamp01(wanted / st.K);
                 if (target > 0.999f) target = 1f;
