@@ -314,6 +314,20 @@ namespace CollegeEducatedAutoEngineer
             }
 
             float sf = SpeedFactor(mph);
+
+            // A slip proves the locomotive makes more than the wheels carry at this lever, whatever the effort per throttle measured so far says:
+            // the game reports the effort clipped at the rail's limit, so a measured figure can stay too low. In the 1.5.8 log an EMR 1200 with no
+            // sand slipped nine times in 4 s at a ceiling of 0.32 that never moved. At the start of each slip the band's figure is raised to at
+            // least 1.1 times the limit over the lever, so a repeated slip lowers the ceiling by about a sixth each time.
+            if (slipping && !st.WasSlipping && !float.IsNaN(limit) && limit > 1f && lever > 0.02f)
+            {
+                float notchLever = loco is DieselLocomotive ? Mathf.Max(lever, DieselNotch) : lever;
+                float lower = 1.1f * limit / notchLever;
+                int b = Band(mph);
+                if (lower > st.KBand[b]) st.KBand[b] = lower;
+                st.K = KFor(st, mph);
+            }
+
             float target = 1f;
             if (st.K > 0f && !float.IsNaN(limit))
             {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.6.0
+
+- **Slip guard: a slip lowers the ceiling for good.** The game reports a locomotive's effort clipped at what the rail carries, so the effort per throttle the guard measures can stay too low, and its ceiling too high. In the 1.5.8 log an EMR 1200 with its sand used up slipped nine times in 4 s at a standing start, the effort swinging between the slipping cap (19600 lbf) and the rail's limit (26650 lbf), while the ceiling stayed at 0.32. A slip now proves the locomotive makes more than the rail carries at that lever: at the start of each slip the figure for that speed band is raised to at least 1.1 times the limit over the lever, so each further slip takes the ceiling down by about a sixth and it does not climb back to where the wheels slipped. This matters most without sand, where holding the throttle down is all the engineer can do.
+- 1.5.9 had not been deployed for that log (the game was still running 1.5.8), so the diesel one-notch floor and the steadier effort measurement of 1.5.9 come with this build too.
+
 ## 1.5.9
 
 - **Fix: a diesel could be held below one notch and stand still.** In the 1.5.8 log the EMR 9000's third start was held at a throttle of 0.045 to 0.07 for 25 s. Below one notch (0.125) a diesel idles: it made 1800 to 3200 lbf and the train barely moved. The slip guard had learned an effort per throttle of over 500k lbf from a sample at 0.045 where the wheels were slipping (25950 lbf, the slipping cap of its 259500 lb on the drivers), which the new slip check of 1.5.8 skipped because the lever was under 0.05. Now: the slip check works at any lever; a diesel's ceiling never goes under one notch unless the wheels slip; the effort per throttle is only measured with the lever steady for 0.75 s (a diesel's effort trails its notch), a diesel's lever counts as at least one notch, and the figure is never taken above twice the locomotive's rated starting effort.
