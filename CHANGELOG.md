@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.2
+
+- **Fix: a train could cycle at a waypoint, stopping and restarting for the last few centimetres.** The game counts a stop target as reached once it is less than 1 m away. In the 1.6.1 log an EMR 1000 in Waypoint mode stopped with the waypoint 0.99 m ahead; coupler slack eased it back to 1.02 m, the game started it again (stop blast, brakes off, throttle up), and with the slip guard's starting throttle (about 0.25) it crept just back to 0.99 m and stopped. That repeated for nearly two minutes. Before, the start-up throttle was a notch or more and the train ran well inside the line. In Waypoint and Yard mode a standing train now counts a stop target within 1.5 m as reached; the stop itself is still made to the game's 1 m (part of "Stay stopped at stop targets", which already held Road-mode stops within 2.5 m).
+
 ## 1.6.1
 
 - **The game's starting throttle is held to the slip guard's ceiling.** Below 1 mph the game's start-up loop sets the throttle itself every tick (from `CalculateThrottleForTargetVelocityStarting`), between the slip guard's writes. In the 1.6.0 log an EMR 1200 with no sand started four times with only one or two slips each (1.5.8: nine in a row), and the throttle settled at 0.28 to 0.35; the slips that were left came from that loop putting the lever back to 0.625 for a moment over a ceiling of 0.28. That figure is now capped at the ceiling where the game works it out, so the start-up loop never asks for more than the wheels carry. No effect while there is no ceiling or with the slip guard off.

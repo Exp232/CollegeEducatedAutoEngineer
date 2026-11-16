@@ -87,11 +87,22 @@ namespace CollegeEducatedAutoEngineer
     internal static class AutoEngineer_ContextualTargetVelocity_Patch
     {
         private const float StopWithinMeters = 2.5f;
+        private const float WaypointHoldMeters = 1.5f;
+        private const float StandingMps = 0.09f;   // 0.2 mph
 
         private static void Postfix(AutoEngineer __instance, ref float __result)
         {
             if (!Main.Active || __result == 0f || !Main.Settings.HoldStopAtStopTargets) return;
-            if (!DecelHold.IsRoad(__instance)) return; // Waypoint/Yard: the game's own stopping accuracy
+            if (!DecelHold.IsRoad(__instance))
+            {
+                // Waypoint/Yard keep the game's own stopping accuracy (it stops once the target is under 1 m away). But a train that stopped at
+                // 0.99 m can be eased back past 1 m by its coupler slack, and the game then starts it again for the last few centimetres; with
+                // the slip guard's starting throttle it only creeps back to 0.99 m and the cycle repeats (an EMR 1000 did that for nearly two
+                // minutes in the 1.6.1 log). Standing still, a stop target within 1.5 m counts as reached.
+                var loco = __instance.Locomotive;
+                if (loco != null && Mathf.Abs(loco.velocity) < StandingMps && DecelHold.DistanceToStopTarget(__instance) < WaypointHoldMeters) __result = 0f;
+                return;
+            }
             if (DecelHold.DistanceToStopTarget(__instance) < StopWithinMeters) __result = 0f;
         }
     }
