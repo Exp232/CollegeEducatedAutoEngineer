@@ -149,6 +149,11 @@ namespace CollegeEducatedAutoEngineer
                     CommandLog.Note(BrakeTaps.FAe?.GetValue(__instance) as AutoEngineer, before, __0, false, false, false);
                     return;
                 }
+                if (DirectionPause.Filter(__instance, ref __0))
+                {
+                    CommandLog.Note(BrakeTaps.FAe?.GetValue(__instance) as AutoEngineer, before, __0, false, false, false);
+                    return;
+                }
                 if (DirectionStop.Filter(__instance, ref __0))
                 {
                     WagonLock.Filter(__instance, ref __0);

@@ -210,9 +210,12 @@ namespace CollegeEducatedAutoEngineer
                 st.Ceiling = 1f;
             }
 
-            // Sand while the wheels slip, for a while after, and while the train asks for more than dry rail carries.
-            bool wantSand = raw || st.SandNeed || (now - st.LastSlip < SandTail(mph));
-            if (Main.Settings.SlipSand) SlipSand.Update(ae, loco, wantSand, mph, now);
+            // Sand while the wheels slip, for a while after, and while the train asks for more than dry rail carries. With the throttle shut
+            // (coasting or braking) there is nothing for sand to do: it goes off at once rather than after the off delay and the hold.
+            bool powerOff = lever < 0.02f && (now - st.DemandTime >= 1.5f || st.Demand < 0.02f);
+            if (powerOff) st.SandNeed = false;
+            bool wantSand = !powerOff && (raw || st.SandNeed || (now - st.LastSlip < SandTail(mph)));
+            if (Main.Settings.SlipSand && !powerOff) SlipSand.Update(ae, loco, wantSand, mph, now);
             else SlipSand.Release(ae, loco);
 
             st.WasSlipping = slipping;

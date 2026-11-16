@@ -4,6 +4,7 @@ using System.Reflection;
 using System.Runtime.CompilerServices;
 using HarmonyLib;
 using Model.AI;
+using Model.AI.SpeedControl.Rollout;
 using UnityEngine;
 
 namespace CollegeEducatedAutoEngineer
@@ -25,6 +26,9 @@ namespace CollegeEducatedAutoEngineer
         {
             public float LastSign;      // direction of the last real movement (+1 or -1), 0 = unknown
             public float StoppedSince = -1f;
+            public float HornOff = -1f;     // the stop blast of a running-state pause ends at this time
+            public bool Holding;            // a running-state pause holds the train now
+            public bool Blown;              // its stop blast has been blown
         }
 
         private static readonly ConditionalWeakTable<AutoEngineer, State> States = new ConditionalWeakTable<AutoEngineer, State>();
@@ -35,7 +39,8 @@ namespace CollegeEducatedAutoEngineer
         private const float StandingMph = 0.1f;
         private const float MpsToMph = 2.23694f;
         private const float BlastSeconds = 0.4f;
-        private static bool _logged;
+        private const float RunningPauseMph = 2f;   // the rollout path only pauses a train already below this
+        private static bool _logged, _loggedRunning;
 
         /// <summary>Called when the engineer is enabled: the first start after that never pauses.</summary>
         internal static void Reset(AutoEngineer ae)
@@ -50,6 +55,11 @@ namespace CollegeEducatedAutoEngineer
         {
             if (ae.Locomotive == null || ae.Locomotive.set == null) return;
             State st = States.GetOrCreateValue(ae);
+            if (st.HornOff > 0f && Time.time >= st.HornOff)
+            {
+                st.HornOff = -1f;
+                BrakeFix.WriteControl(ae, "Horn", 0f);
+            }
             float v = ae.Locomotive.velocity;
             float mph = Mathf.Abs(v) * MpsToMph;
             if (mph >= MovingMph)
@@ -96,6 +106,66 @@ namespace CollegeEducatedAutoEngineer
             {
                 return true; // unknown: assume the stock engineer blew its own blast
             }
+        }
+
+        /// <summary>
+        /// Rollout-controller hook. The wrap of StartMovement only runs when the engineer goes through its Stopped and Starting states; with the
+        /// 0.6 controller a train ordered the other way while still rolling stays in Running, and the controller flips the reverser and opens the
+        /// throttle as the speed passes through zero (in the 1.5.6 log it went from 0.45 mph forward straight to throttle in reverse, with the car
+        /// brakes still at 15 psi). So here too: below 2 mph, while the order runs against the way the train last moved, the throttle is closed
+        /// and the locomotive brake held until the train has stood for the pause, with the stop blast once it stands. Returns true while holding.
+        /// </summary>
+        internal static bool Filter(object loop, ref RolloutCommand command)
+        {
+            float seconds = Main.Settings.DirectionChangePauseSeconds;
+            if (seconds < 0.5f) return false;
+            var ae = BrakeTaps.FAe?.GetValue(loop) as AutoEngineer;
+            if (ae == null || ae.Locomotive == null) return false;
+            State st = States.GetOrCreateValue(ae);
+            float mph = Mathf.Abs(ae.Locomotive.velocity) * MpsToMph;
+            float want = OrderedSign(ae);
+            if (want == 0f || st.LastSign == 0f || want == st.LastSign || mph >= RunningPauseMph)
+            {
+                st.Holding = false;
+                return false;
+            }
+
+            float now = Time.time;
+            if (st.StoppedSince >= 0f && now - st.StoppedSince >= seconds)
+            {
+                // Stood long enough: this change of direction is done, the controller starts the train.
+                st.LastSign = want;
+                st.Holding = false;
+                return false;
+            }
+
+            if (!st.Holding)
+            {
+                st.Holding = true;
+                st.Blown = false;
+                if (!_loggedRunning)
+                {
+                    _loggedRunning = true;
+                    Main.Mod.Logger.Log("Direction change: " + ae.Locomotive.DisplayName + " stops and stands " + seconds.ToString("0.0") + " s before moving the other way (rollout path, logged once).");
+                }
+            }
+            if (st.StoppedSince >= 0f && !st.Blown && Main.Settings.DirectionChangeHorn)
+            {
+                st.Blown = true;
+                BrakeFix.WriteControl(ae, "Horn", 1f);
+                st.HornOff = now + BlastSeconds;
+            }
+
+            float applied = command.TrainBrakeSet;
+            try
+            {
+                if (BrakeTaps.PApplied != null && BrakeTaps.FTrainBrake != null)
+                    applied = Convert.ToSingle(BrakeTaps.PApplied.GetValue(BrakeTaps.FTrainBrake.GetValue(loop), null));
+            }
+            catch (Exception) { }
+            command = new RolloutCommand(RolloutActionKind.Hold, 0f, 1f, applied, false, false, command.Cost, command.HoldCost);
+            RolloutThrottle.CloseFor(ae);
+            return true;
         }
 
         /// <summary>Postfix body for AutoEngineer.StartMovement: returns the enumerator to run instead.</summary>
