@@ -308,7 +308,7 @@ namespace CollegeEducatedAutoEngineer
                     AlwaysPatch = true,
                     On = () => s.SlipGuard || s.SlipSand,
                     TurnOff = () => { s.SlipGuard = false; s.SlipSand = false; },
-                    Needs = new[] { "BaseLocomotive.DriverWheelStates", "AutoEngineer._control" },
+                    Needs = new[] { "BaseLocomotive.DriverWheelStates", "AutoEngineer._control", "AutoEngineer._targets", "Targets.AverageGradeUnder" },
                     Patches = new Type[0],
                 },
                 new Feature

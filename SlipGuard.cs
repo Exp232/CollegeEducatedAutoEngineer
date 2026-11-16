@@ -44,10 +44,13 @@ namespace CollegeEducatedAutoEngineer
             public float LimitNoSand;        // lbf, for the log
             public float Effort;             // lbf, for the log
             public bool LoggedLimit;
+            public float Required = float.NaN;   // lbf the train needs to move (grade, rolling and starting resistance, a little acceleration)
+            public bool Wet;                 // the weather has cut the rail's grip below the dry figure
         }
 
         private static readonly ConditionalWeakTable<AutoEngineer, State> States = new ConditionalWeakTable<AutoEngineer, State>();
         private static readonly FieldInfo FStates = AccessTools.Field(typeof(BaseLocomotive), "DriverWheelStates");
+        private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
 
         private const float TickInterval = 0.05f;
         private const float ClearHoldSeconds = 0.8f;    // after the slip stops, stay closed this long
@@ -57,8 +60,7 @@ namespace CollegeEducatedAutoEngineer
         private const float SandProactiveMph = 8f;      // below this the sand goes down as soon as the request passes the dry limit
         private const float SandRollingFactor = 1.15f;  // above it, only when the request is this far past the dry limit (or after a slip)
         private static float SandTail(float mph) { return Mathf.Lerp(SandTailSeconds, 6f, Mathf.Clamp01((mph - SandProactiveMph) / 8f)); }
-        private const float SandOffFraction = 0.75f;    // the train asks for less than this much of the dry limit ...
-        private const float SandOffSeconds = 8f;        // ... for this long: sand off
+        private const float SandOffSeconds = 4f;        // no reason to sand for this long: sand off
         private const int LoggedSlips = 12;
 
         /// <summary>0 at 3 mph and under, 1 from 15 mph: how much of a high-speed treatment a slip gets (a slip at speed is eased, not slammed).</summary>
@@ -91,6 +93,67 @@ namespace CollegeEducatedAutoEngineer
             ceiling = st.Ceiling;
             limitLbf = st.LimitNoSand;
             effortLbf = st.Effort;
+        }
+
+        /// <summary>For the log: the effort the train needs to move (lbf, NaN when unknown) and whether the rail is wet.</summary>
+        internal static void SandInfo(AutoEngineer ae, out float requiredLbf, out bool wet)
+        {
+            requiredLbf = float.NaN;
+            wet = false;
+            if (ae == null || !States.TryGetValue(ae, out State st)) return;
+            requiredLbf = st.Required;
+            wet = st.Wet;
+        }
+
+        /// <summary>
+        /// A slipping wheelset's effort is held at exactly a tenth of its adhesive weight. The wheels' own slip flag can read false while that is
+        /// so (in the 1.5.7 log a diesel stood at 19600 lbf, a tenth of its 196000 lb on the drivers, for 2 to 3 s at every start with the flag
+        /// mostly off), so an effort at that figure counts as a slip.
+        /// </summary>
+        private static bool AtSlipCap(BaseLocomotive loco, float effort, float lever)
+        {
+            if (lever < 0.05f || effort < 100f) return false;
+            DriverWheelState[] ws = Wheels(loco);
+            if (ws == null) return false;
+            float aw = 0f;
+            for (int i = 0; i < ws.Length; i++) aw += ws[i].AdhesiveWeight;
+            if (aw < 1f) return false;
+            float cap = 0.1f * aw;
+            return Mathf.Abs(effort - cap) <= 0.003f * cap;
+        }
+
+        /// <summary>
+        /// The effort the train needs to keep moving, or to get moving, in lbf: the uphill grade under it, the game's rolling resistance (Davis) at
+        /// this speed, this mod's starting resistance while standing, and enough for a slow gain of speed (0.05 mph a second). NaN when unknown.
+        /// </summary>
+        private static float RequiredEffort(AutoEngineer ae, BaseLocomotive loco, float mph)
+        {
+            try
+            {
+                float tons = 0f, davis = 0f;
+                foreach (Car car in loco.EnumerateCoupled())
+                {
+                    if (car == null) continue;
+                    float t = car.Weight / 2000f;
+                    if (t <= 0f) continue;
+                    tons += t;
+                    davis += (1.3f + 29f / t + 0.045f * mph + 0.063f * mph * mph / t) * t;
+                }
+                if (tons <= 0f) return float.NaN;
+                float grade = 0f;
+                var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
+                if (targets != null && !float.IsNaN(targets.AverageGradeUnder)) grade = Mathf.Max(0f, -targets.AverageGradeUnder);
+                float gradeLbf = 20f * grade * tons;   // 20 lb per ton per percent
+                float start = 0f;
+                if (Main.Settings.StartingResistance && mph < 5f)
+                    start = Main.Settings.StartingResistanceLbPerTon * tons * Mathf.Exp(-mph / Mathf.Max(0.5f, Main.Settings.StartingResistanceFadeMph));
+                float accel = tons * 2000f * 0.05f * 0.44704f / 9.80665f;   // weight in lb times a / g
+                return gradeLbf + davis + start + accel;
+            }
+            catch (Exception)
+            {
+                return float.NaN;
+            }
         }
 
         /// <summary>The wheels slipped within the last <paramref name="seconds"/> seconds.</summary>
@@ -153,21 +216,24 @@ namespace CollegeEducatedAutoEngineer
             }
 
             // A short slip at speed is let go: the longer the train is moving, the longer the slip must last before the throttle is touched.
-            bool raw = IsSlipping(loco);
-            if (!raw) st.SlipSince = -1f;
-            else if (st.SlipSince < 0f) st.SlipSince = now;
-            bool slipping = raw && now - st.SlipSince >= Mathf.Lerp(0.1f, 0.8f, SpeedFactor(mph));
-
             float lever = BrakeFix.ReadThrottle(ae);
             float effort = Mathf.Abs(loco.TractiveEffort);
             st.Effort = effort;
 
-            // Effort per unit of throttle, measured while the wheels grip (a slipping wheelset's effort is cut, so it says nothing).
-            if (!raw && lever > 0.05f && effort > 100f)
+            bool raw = IsSlipping(loco) || AtSlipCap(loco, effort, lever);
+            if (!raw) st.SlipSince = -1f;
+            else if (st.SlipSince < 0f) st.SlipSince = now;
+            bool slipping = raw && now - st.SlipSince >= Mathf.Lerp(0.1f, 0.8f, SpeedFactor(mph));
+
+            // Effort per unit of throttle, measured while the wheels grip (a slipping wheelset's effort is cut, so it says nothing), and not
+            // in the second after a slip. A diesel's effort does not follow the notch evenly (a standing EMR 1200 gave 63k to 89k lbf per unit),
+            // so a band takes a higher figure at once and lets it down slowly: the ceiling errs low.
+            if (!raw && now - st.LastSlip > 1f && lever > 0.05f && effort > 100f)
             {
                 float k = effort / lever;
                 int b = Band(mph);
-                st.KBand[b] = st.KBand[b] <= 0f ? k : Mathf.Lerp(st.KBand[b], k, 1f - Mathf.Exp(-dt / 1f));
+                if (st.KBand[b] <= 0f || k > st.KBand[b]) st.KBand[b] = k;
+                else st.KBand[b] = Mathf.Lerp(st.KBand[b], k, 1f - Mathf.Exp(-dt / 10f));
             }
             st.K = KFor(st, mph);
 
@@ -179,18 +245,23 @@ namespace CollegeEducatedAutoEngineer
             float demand = now - st.DemandTime < 1.5f ? Mathf.Max(lever, st.Demand) : lever;
             float asked = st.K > 0f ? st.K * demand : effort;
 
-            // Sand only when the request is more than dry rail carries, and keep it a while after that has passed.
-            // Above a crawl the sand goes down when the wheels have slipped lately, or when the request is well past dry rail (the rail's grip, not the
-            // lever, decides): full throttle alone is no reason to sand a train that is already rolling.
+            // Sand ahead of a slip only when it is needed: when the train itself needs more effort than the rail carries without sand (its tonnage on
+            // this grade, from a stand or at speed), or on a rail the weather has made slippery when the engineer asks for more than it carries.
+            // On a dry rail a request alone is no reason: the slip guard holds the throttle to what the wheels carry. After a slip the tail below
+            // sands as before.
             bool crawl = mph < SandProactiveMph;
             bool recent = now - st.LastSlip < SandTail(mph);
             float needAt = crawl ? Main.Settings.SlipMargin : SandRollingFactor;
-            if (haveLimit && limitSand > limitNo * 1.02f && asked > needAt * limitNo && (crawl || recent || asked > SandRollingFactor * limitNo))
+            st.Wet = SlipSand.Inclement(loco);
+            st.Required = haveLimit ? RequiredEffort(ae, loco, mph) : float.NaN;
+            bool tonnage = haveLimit && !float.IsNaN(st.Required) && st.Required > Main.Settings.SlipMargin * limitNo;
+            bool wetRequest = st.Wet && haveLimit && asked > needAt * limitNo && (crawl || recent || asked > SandRollingFactor * limitNo);
+            if (haveLimit && limitSand > limitNo * 1.02f && (tonnage || wetRequest))
             {
                 st.SandNeed = true;
                 st.SandLowSince = -1f;
             }
-            else if (st.SandNeed && (!haveLimit || asked < SandOffFraction * Main.Settings.SlipMargin * limitNo))
+            else if (st.SandNeed)
             {
                 if (st.SandLowSince < 0f) st.SandLowSince = now;
                 if (now - st.SandLowSince > SandOffSeconds) st.SandNeed = false;
@@ -413,6 +484,28 @@ namespace CollegeEducatedAutoEngineer
         /// drivers times the friction coefficient Wheelslip Prototype's wheel patch hands to DriverWheelState.UpdateWheelslip (or the game's own curve when
         /// Wheelslip is not there or does not cover engineers).
         /// </summary>
+        /// <summary>
+        /// True when the weather has cut the rail's grip: Wheelslip's weather coefficient is more than 5 % under the game's dry curve at the
+        /// wheels' speed. False without Wheelslip (the game has no wet rail of its own) or when it does not cover engineers.
+        /// </summary>
+        internal static bool Inclement(BaseLocomotive loco)
+        {
+            try
+            {
+                if (!Present || _weather == null || !WheelslipSandsEngineers()) return false;
+                DriverWheelState[] wheels = SlipGuard.Wheels(loco);
+                if (wheels == null || wheels.Length == 0) return false;
+                float weather = Convert.ToSingle(_weather.Invoke(null, new object[] { loco }));
+                if (float.IsNaN(weather)) return false;
+                float dry = TrainMath.TrackCoefficientOfFriction(TrainMath.TrackCondition.Dry, wheels[0].WheelVelocity);
+                return weather < 0.95f * dry;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
         internal static bool Limits(BaseLocomotive loco, out float noSand, out float withSand)
         {
             noSand = 0f;

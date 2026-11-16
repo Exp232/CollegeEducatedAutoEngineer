@@ -341,6 +341,8 @@ namespace CollegeEducatedAutoEngineer
             SlipGuard.Status(_ae, out bool slipping, out float ceiling, out float limitLbf, out float effortLbf);
             SlipSand.Status(_ae, _ae.Locomotive as BaseLocomotive, out bool sandOn, out float sandLb);
             row.Add("slip", slipping ? 1 : 0).Add("slipCeil", ceiling).Add("sandOn", sandOn ? 1 : 0).Add("sandLb", sandLb).Add("adhLbf", limitLbf).Add("effLbf", effortLbf).Add("lockRatio", WagonLock.WorstRatio(_ae.Locomotive as BaseLocomotive, Mathf.Abs(_ae.Locomotive.velocity))).Add("carsLocked", WagonLock.LockedCars);
+            SlipGuard.SandInfo(_ae, out float reqLbf, out bool wet);
+            row.Add("reqLbf", reqLbf).Add("wet", wet ? 1 : 0);
         }
 
         private bool SignalPlanning_Scan(bool forward, out float slowest, out float firstDrop, out string cause)
