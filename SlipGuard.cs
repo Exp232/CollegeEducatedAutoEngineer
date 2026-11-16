@@ -705,15 +705,73 @@ namespace CollegeEducatedAutoEngineer
     [HarmonyPatch(typeof(AutoEngineer), "CalculateThrottleForTargetVelocityStarting")]
     internal static class AutoEngineer_StartingThrottle_Patch
     {
+        private sealed class Start
+        {
+            public float LastCall = -100f;
+            public float Since;
+            public int Notches = 1;
+            public float RaisedAt;
+        }
+
+        private static readonly ConditionalWeakTable<AutoEngineer, Start> Starts = new ConditionalWeakTable<AutoEngineer, Start>();
+        private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
+        private const float NotchStepSeconds = 2f;   // a diesel still standing gets one more notch this often
+        private const float MovingMph = 0.3f;
+        private static bool _logged;
+
         private static void Postfix(AutoEngineer __instance, ref float __result)
         {
             try
             {
-                if (!Main.Active || Main.Settings == null || !Main.Settings.SlipGuard) return;
+                if (!Main.Active || Main.Settings == null) return;
+                if (Main.Settings.DieselStartNotchOne) DieselNotchOne(__instance, ref __result);
+                if (!Main.Settings.SlipGuard) return;
                 float ceiling = SlipGuard.Ceiling(__instance);
                 if (ceiling < 1f && __result > ceiling) __result = ceiling;
             }
             catch (Exception) { /* leave the game's figure */ }
+        }
+
+        /// <summary>
+        /// A diesel starts in notch 1 (the game rounds its starting throttle up to a notch and often asks for 2 or 3). While the train still
+        /// stands, it gets one more notch every 2 s, so a heavy train or a grade still gets going. Not on an upgrade at or above the hill-start
+        /// grade when the hill-start spool-up is on: there the locomotive must pull the moment the brakes let go.
+        /// </summary>
+        private static void DieselNotchOne(AutoEngineer ae, ref float result)
+        {
+            var loco = ae.Locomotive;
+            if (!(loco is DieselLocomotive) || result <= RolloutActionLimits.ThrottleNotch + 0.001f) return;
+            if (Main.Settings.HillStartSpoolUp)
+            {
+                var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
+                if (targets != null && -targets.AverageGradeUnder >= Main.Settings.HillStartMinGradePercent) return;
+            }
+
+            Start st = Starts.GetOrCreateValue(ae);
+            float now = Time.time;
+            if (now - st.LastCall > 1.5f)
+            {
+                // A new start: the game calls this every tick while the train is under 1 mph.
+                st.Since = now;
+                st.RaisedAt = now;
+                st.Notches = 1;
+            }
+            st.LastCall = now;
+            if (loco.VelocityMphAbs < MovingMph && now - st.RaisedAt >= NotchStepSeconds && st.Notches < 8)
+            {
+                st.Notches++;
+                st.RaisedAt = now;
+            }
+            float cap = st.Notches * RolloutActionLimits.ThrottleNotch;
+            if (result > cap)
+            {
+                if (!_logged)
+                {
+                    _logged = true;
+                    Main.Mod.Logger.Log("Diesel start: " + loco.DisplayName + " starts in notch " + st.Notches + " (the game asked for notch " + Mathf.RoundToInt(result * 8f) + "; one more notch every " + NotchStepSeconds.ToString("0") + " s while standing; logged once).");
+                }
+                result = cap;
+            }
         }
     }
 }

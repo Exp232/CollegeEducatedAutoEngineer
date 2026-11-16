@@ -256,6 +256,12 @@ namespace CollegeEducatedAutoEngineer
         /// </summary>
         public bool WagonLockGuard = true;
 
+        /// <summary>
+        /// Diesels start in notch 1 instead of the notch the game asks for (often 2 or 3), with one more notch every 2 s while the train still
+        /// stands. Not on an upgrade at or above the hill-start grade while the hill-start spool-up is on.
+        /// </summary>
+        public bool DieselStartNotchOne = true;
+
         /// <summary>Sand only up to this speed (mph). Settings.xml only.</summary>
         public float SlipSandMaxMph = 25f;
 

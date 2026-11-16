@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.3
+
+- **New: diesels start in notch 1.** The game rounds a diesel's starting throttle up to a whole notch and often asks for notch 2 or 3. It now opens to notch 1, and while the train still stands it takes one more notch every 2 s, so a heavy train or one on a grade still gets going. On an upgrade at or above the hill-start grade (0.5 % by default, with "Hill start spool-up" on) the game's notch is kept, because there the locomotive has to pull the moment the brakes let go. "Diesels start in notch 1" toggle in the settings window (`DieselStartNotchOne`, on). Player.log says "Diesel start: ... starts in notch 1" the first time. The slip guard's ceiling still applies on top.
+
 ## 1.6.2
 
 - **Fix: a train could cycle at a waypoint, stopping and restarting for the last few centimetres.** The game counts a stop target as reached once it is less than 1 m away. In the 1.6.1 log an EMR 1000 in Waypoint mode stopped with the waypoint 0.99 m ahead; coupler slack eased it back to 1.02 m, the game started it again (stop blast, brakes off, throttle up), and with the slip guard's starting throttle (about 0.25) it crept just back to 0.99 m and stopped. That repeated for nearly two minutes. Before, the start-up throttle was a notch or more and the train ran well inside the line. In Waypoint and Yard mode a standing train now counts a stop target within 1.5 m as reached; the stop itself is still made to the game's 1 m (part of "Stay stopped at stop targets", which already held Road-mode stops within 2.5 m).
