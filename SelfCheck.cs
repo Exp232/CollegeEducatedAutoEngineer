@@ -67,6 +67,7 @@ namespace CollegeEducatedAutoEngineer
                 ["AutoEngineer.AverageTrainBrakeCylinder()"] = () => Method(AE, "AverageTrainBrakeCylinder", Type.EmptyTypes, typeof(float)),
                 ["AutoEngineer._targets"] = () => Field(AE, "_targets", Targets),
                 ["AutoEngineer._control"] = () => Field(AE, "_control", null),
+                ["Car.Config.brakeForceCurve, Car.nominalBrakingForce"] = () => WagonLock.NativeAvailable(),
                 ["BaseLocomotive.DriverWheelStates"] = () => Field(typeof(BaseLocomotive), "DriverWheelStates", typeof(DriverWheelState[])),
                 ["AutoEngineer._lastState"] = () => Field(AE, "_lastState", null),
                 ["AutoEngineer.CalculateThrottleForTargetVelocityStarting(float, float, float)"] = () => Method(AE, "CalculateThrottleForTargetVelocityStarting", new[] { typeof(float), typeof(float), typeof(float) }, typeof(float)),
@@ -316,7 +317,7 @@ namespace CollegeEducatedAutoEngineer
                     AlwaysPatch = true,
                     On = () => s.WagonLockGuard,
                     TurnOff = () => s.WagonLockGuard = false,
-                    Needs = new[] { "AutoEngineer._control" },
+                    Needs = new[] { "AutoEngineer._control", "Car.Config.brakeForceCurve, Car.nominalBrakingForce" },
                     Patches = new Type[0],
                 },
                 new Feature

@@ -4,6 +4,7 @@ using KeyValue.Runtime;
 using HarmonyLib;
 using Model;
 using Model.AI;
+using Model.Physics;
 using Model.AI.SpeedControl.Rollout;
 using UnityEngine;
 
@@ -13,7 +14,8 @@ namespace CollegeEducatedAutoEngineer
     /// Car wheel lock under Wheelslip Prototype. Its wagon brake law locks a car's wheels when the braking force (cylinder fraction times 0.7 of the
     /// empty weight times the game's brake-force curve, which rises as the train slows) is more than 1.02 times weight times the rail's friction
     /// coefficient, and the car then brakes at half of what the rail holds until the force falls under 0.8 of it. A train run down to a stop with a
-    /// fixed application crosses that line on the way. The brake force of one car at 100 % is public (Car.CalculateBrakingForce), so the line is
+    /// fixed application crosses that line on the way. The brake force of one car at 100 % is the game's formula (read here directly, not through the
+    /// patched Car.CalculateBrakingForce), so the line is
     /// known per car: this filter keeps the train brake from being applied further once a car's cylinders are near it, and eases the brake off
     /// when a car is past it. Does nothing without Wheelslip Prototype, with its wagon brakes off, or with the setting off.
     /// </summary>
@@ -31,13 +33,99 @@ namespace CollegeEducatedAutoEngineer
         private static MethodInfo _weather, _railGrip;
         private static bool _logged;
 
-        /// <summary>
-        /// How much the estimate has to be scaled up to match Wheelslip: in the 1.5.4 log 13 cars were flagged locked with the cylinders at 0.45
-        /// while the estimate said 0.25 of the line, so the estimate is corrected from the flag. Raised while cars are locked under braking, let
-        /// down slowly while none are.
-        /// </summary>
-        internal static float Gain = 1f;
-        private static float _gainTime;
+        // The game's own brake force, read without calling Car.CalculateBrakingForce: Wheelslip patches that method and its postfix updates the
+        // car's lock state from the demand it is given, so asking it about a full application locked every car (1.5.1 to 1.5.5).
+        private static bool _nativeTried;
+        private static FieldInfo _cfg, _nominal, _curveField;
+        private static PropertyInfo _curveProp;
+
+        private static bool InitNative()
+        {
+            if (!_nativeTried)
+            {
+                _nativeTried = true;
+                try
+                {
+                    _cfg = AccessTools.Field(typeof(Car), "Config");
+                    _nominal = AccessTools.Field(typeof(Car), "nominalBrakingForce");
+                    if (_cfg != null)
+                    {
+                        _curveField = AccessTools.Field(_cfg.FieldType, "brakeForceCurve");
+                        if (_curveField == null) _curveProp = AccessTools.Property(_cfg.FieldType, "brakeForceCurve");
+                    }
+                }
+                catch (Exception e)
+                {
+                    Main.Mod.Logger.Log("Wagon lock guard: brake force members not found: " + e.Message);
+                }
+            }
+            return _cfg != null && _nominal != null && (_curveField != null || _curveProp != null);
+        }
+
+        /// <summary>Car.CalculateBrakingForce(1, speed) as the game computes it, before Wheelslip's postfix. NaN when it cannot be read.</summary>
+        internal static float NativeFullForce(Car car, float absVelocity)
+        {
+            if (!InitNative()) return float.NaN;
+            object cfg = _cfg.GetValue(car);
+            if (cfg == null) return float.NaN;
+            var curve = (_curveField != null ? _curveField.GetValue(cfg) : _curveProp.GetValue(cfg, null)) as AnimationCurve;
+            if (curve == null) return float.NaN;
+            float nominal = Convert.ToSingle(_nominal.GetValue(car));
+            return Mathf.Lerp(0.8f, 1f, car.Condition) * nominal * Car.BrakeForceMultiplier * curve.Evaluate(absVelocity * 2.23694f) * 4.44822f;
+        }
+
+        // Wheelslip runs its lock law in a postfix on Car.CalculateBrakingForce, so every caller moves a car's lock state, not only the physics:
+        // the auto engineer asks for each car at a full application (CalculateTotalAvailableBrakingAtSpeed) and the brake pressure simulator for
+        // pressures that are only being tried, and a full application is past the lock line, so planning alone locked the cars. With the guard
+        // on, the law is only let run inside IntegrationSet.CalculateRetardingForce (the physics); other callers get the game's own force.
+        // Wheelslip loads after this mod, so the patch is put in on the first auto engineer command.
+        private static int _inPhysics;
+        private static bool _isolationTried;
+        internal static bool Isolated;
+
+        internal static void EnsureIsolation()
+        {
+            if (_isolationTried) return;
+            _isolationTried = true;
+            try
+            {
+                Assembly ws = null;
+                foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
+                    if (asm.GetName().Name == "WheelslipPrototype") { ws = asm; break; }
+                if (ws == null || Main.Harmony == null) return;
+                const BindingFlags st = BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic;
+                MethodInfo physics = AccessTools.Method(typeof(IntegrationSet), "CalculateRetardingForce");
+                MethodInfo wagons = ws.GetType("WheelslipPrototype.WagonBrakes")?.GetMethod("Calculate", st);
+                MethodInfo locos = ws.GetType("WheelslipPrototype.BrakeLock")?.GetMethod("Calculate", st);
+                if (physics == null || wagons == null)
+                {
+                    Main.Mod.Logger.Log("Wagon lock guard: Wheelslip's brake law or the game's retarding force was not found; planning calls still reach the lock law.");
+                    return;
+                }
+                Main.Harmony.Patch(physics, prefix: new HarmonyMethod(typeof(WagonLock), nameof(PhysicsEnter)), finalizer: new HarmonyMethod(typeof(WagonLock), nameof(PhysicsExit)));
+                Main.Harmony.Patch(wagons, prefix: new HarmonyMethod(typeof(WagonLock), nameof(OnlyInPhysics)));
+                if (locos != null) Main.Harmony.Patch(locos, prefix: new HarmonyMethod(typeof(WagonLock), nameof(OnlyInPhysics)));
+                Isolated = true;
+                Main.Mod.Logger.Log("Wagon lock guard: Wheelslip's brake lock law now runs only for the physics, not for the auto engineer's planning.");
+            }
+            catch (Exception e)
+            {
+                Main.Mod.Logger.Log("Wagon lock guard: could not separate planning from Wheelslip's lock law: " + e.Message);
+            }
+        }
+
+        private static void PhysicsEnter() { _inPhysics++; }
+
+        private static void PhysicsExit() { if (_inPhysics > 0) _inPhysics--; }
+
+        // Harmony prefix: false skips Wheelslip's law, so the caller gets the game's force and the lock state is left as it is.
+        private static bool OnlyInPhysics()
+        {
+            return _inPhysics > 0 || Main.Settings == null || !Main.Settings.WagonLockGuard || !Main.Active;
+        }
+
+        /// <summary>True when the game's brake force members can be read (for the self-check).</summary>
+        internal static bool NativeAvailable() { return InitNative(); }
 
         internal static int LockedCars;                // cars Wheelslip has locked right now
         internal static float LastRatio = float.NaN;   // for the log: worst car, cylinders as a fraction of its lock line
@@ -132,11 +220,12 @@ namespace CollegeEducatedAutoEngineer
                     if (car == null || car is BaseLocomotive || car.IsLocomotive || car.IsDerailed || car.air == null) continue;
                     float m = mu;
                     if (_railGrip != null) m = Convert.ToSingle(_railGrip.Invoke(null, new object[] { car, mu }));
-                    float full = car.CalculateBrakingForce(1f, v) * factor;
+                    float full = NativeFullForce(car, v) * factor;
+                    if (float.IsNaN(full)) return false;
                     if (full <= 1f) continue;
                     float line = threshold * m * car.Weight * 4.44822f;
                     // The cap must hold down to the slowest speed the law locks at, where the brake-force curve is highest.
-                    float atFull = Mathf.Max(full, car.CalculateBrakingForce(1f, EntryFloorMps) * factor) / line;
+                    float atFull = Mathf.Max(full, NativeFullForce(car, EntryFloorMps) * factor) / line;
                     float bp = car.air.brakePercent;
                     n++;
                     pct += bp;
@@ -146,8 +235,6 @@ namespace CollegeEducatedAutoEngineer
                 }
                 LockedCars = locked;
                 if (n == 0) return false;
-                ratio *= Gain;
-                ratioAtFull *= Gain;
                 cylinderFraction = pct / n;
                 return true;
             }
@@ -172,13 +259,6 @@ namespace CollegeEducatedAutoEngineer
             float speed = Mathf.Abs(ae.Locomotive.velocity);
             if (!Measure(ae.Locomotive, speed, out float ratio, out float atFull, out float pct)) return false;
             LastRatio = ratio;
-
-            if (Time.time - _gainTime >= 0.5f)
-            {
-                _gainTime = Time.time;
-                if (LockedCars >= 2 && ratio < 1.1f) Gain = Mathf.Min(12f, Gain * Mathf.Max(1.15f, 1.1f / Mathf.Max(0.05f, ratio)));
-                else if (LockedCars == 0 && pct > 0.15f && speed > 0.5f) Gain = Mathf.Max(1f, Gain * 0.995f);
-            }
 
             float applied = Convert.ToSingle(BrakeTaps.PApplied.GetValue(BrakeTaps.FTrainBrake.GetValue(loop), null));
             // Learn the cylinders per handle once the cylinders have settled near the applied handle.

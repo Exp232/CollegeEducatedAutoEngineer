@@ -72,6 +72,7 @@ namespace CollegeEducatedAutoEngineer
         internal static string SettingsPath => Path.Combine(Mod.Path, "Settings.xml");
 
         private static HarmonyLib.Harmony _harmony;
+        internal static HarmonyLib.Harmony Harmony => _harmony;
         private static UnityEngine.GameObject _hotkey;
         private static UnityEngine.GameObject _legacyLimits;
 

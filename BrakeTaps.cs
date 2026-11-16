@@ -143,6 +143,7 @@ namespace CollegeEducatedAutoEngineer
             try
             {
                 RolloutCommand before = __0;
+                WagonLock.EnsureIsolation();
                 if (StallGuard.Filter(__instance, ref __0))
                 {
                     CommandLog.Note(BrakeTaps.FAe?.GetValue(__instance) as AutoEngineer, before, __0, false, false, false);
@@ -150,6 +151,7 @@ namespace CollegeEducatedAutoEngineer
                 }
                 if (DirectionStop.Filter(__instance, ref __0))
                 {
+                    WagonLock.Filter(__instance, ref __0);
                     CommandLog.Note(BrakeTaps.FAe?.GetValue(__instance) as AutoEngineer, before, __0, false, false, false);
                     return;
                 }
