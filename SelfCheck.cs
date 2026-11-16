@@ -308,8 +308,8 @@ namespace CollegeEducatedAutoEngineer
                     AlwaysPatch = true,
                     On = () => s.SlipGuard || s.SlipSand,
                     TurnOff = () => { s.SlipGuard = false; s.SlipSand = false; },
-                    Needs = new[] { "BaseLocomotive.DriverWheelStates", "AutoEngineer._control", "AutoEngineer._targets", "Targets.AverageGradeUnder" },
-                    Patches = new Type[0],
+                    Needs = new[] { "BaseLocomotive.DriverWheelStates", "AutoEngineer._control", "AutoEngineer._targets", "Targets.AverageGradeUnder", "AutoEngineer.CalculateThrottleForTargetVelocityStarting(float, float, float)" },
+                    Patches = new[] { typeof(AutoEngineer_StartingThrottle_Patch) },
                 },
                 new Feature
                 {

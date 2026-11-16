@@ -695,4 +695,25 @@ namespace CollegeEducatedAutoEngineer
             st.Owned = false;
         }
     }
+
+    /// <summary>
+    /// The game's start-up loop sets the throttle straight from CalculateThrottleForTargetVelocityStarting every tick until the train is past
+    /// 1 mph, between the slip guard's own writes. In the 1.6.0 log that put an EMR 1200 with no sand at 0.625 for a moment above a ceiling of
+    /// 0.28, and the wheels slipped. The starting throttle is now held to the slip guard's ceiling where it is worked out, so the loop never asks
+    /// for more. Does nothing while the guard has no ceiling (1) or is off.
+    /// </summary>
+    [HarmonyPatch(typeof(AutoEngineer), "CalculateThrottleForTargetVelocityStarting")]
+    internal static class AutoEngineer_StartingThrottle_Patch
+    {
+        private static void Postfix(AutoEngineer __instance, ref float __result)
+        {
+            try
+            {
+                if (!Main.Active || Main.Settings == null || !Main.Settings.SlipGuard) return;
+                float ceiling = SlipGuard.Ceiling(__instance);
+                if (ceiling < 1f && __result > ceiling) __result = ceiling;
+            }
+            catch (Exception) { /* leave the game's figure */ }
+        }
+    }
 }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.1
+
+- **The game's starting throttle is held to the slip guard's ceiling.** Below 1 mph the game's start-up loop sets the throttle itself every tick (from `CalculateThrottleForTargetVelocityStarting`), between the slip guard's writes. In the 1.6.0 log an EMR 1200 with no sand started four times with only one or two slips each (1.5.8: nine in a row), and the throttle settled at 0.28 to 0.35; the slips that were left came from that loop putting the lever back to 0.625 for a moment over a ceiling of 0.28. That figure is now capped at the ceiling where the game works it out, so the start-up loop never asks for more than the wheels carry. No effect while there is no ceiling or with the slip guard off.
+
 ## 1.6.0
 
 - **Slip guard: a slip lowers the ceiling for good.** The game reports a locomotive's effort clipped at what the rail carries, so the effort per throttle the guard measures can stay too low, and its ceiling too high. In the 1.5.8 log an EMR 1200 with its sand used up slipped nine times in 4 s at a standing start, the effort swinging between the slipping cap (19600 lbf) and the rail's limit (26650 lbf), while the ceiling stayed at 0.32. A slip now proves the locomotive makes more than the rail carries at that lever: at the start of each slip the figure for that speed band is raised to at least 1.1 times the limit over the lever, so each further slip takes the ceiling down by about a sixth and it does not climb back to where the wheels slipped. This matters most without sand, where holding the throttle down is all the engineer can do.
