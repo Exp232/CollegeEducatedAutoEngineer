@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.4
+
+- **Diesel notch-1 start: no step up while the train is getting going.** In the 1.6.3 log both EMR 1000 starts were already rolling in notch 1 (0.04 to 0.07 mph) when the 2-second step put them in notch 2, because the step only asked whether the train was still under 0.3 mph. It now steps up only while the train has gained less than 0.1 mph since the last step; a train that is gaining speed stays in notch 1 until the engineer takes over at 1 mph. In the same log the starts took 6 to 12 s to reach 2 mph with no more than one slip each, no sand used and no car locked.
+
 ## 1.6.3
 
 - **New: diesels start in notch 1.** The game rounds a diesel's starting throttle up to a whole notch and often asks for notch 2 or 3. It now opens to notch 1, and while the train still stands it takes one more notch every 2 s, so a heavy train or one on a grade still gets going. On an upgrade at or above the hill-start grade (0.5 % by default, with "Hill start spool-up" on) the game's notch is kept, because there the locomotive has to pull the moment the brakes let go. "Diesels start in notch 1" toggle in the settings window (`DieselStartNotchOne`, on). Player.log says "Diesel start: ... starts in notch 1" the first time. The slip guard's ceiling still applies on top.

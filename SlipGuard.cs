@@ -711,12 +711,14 @@ namespace CollegeEducatedAutoEngineer
             public float Since;
             public int Notches = 1;
             public float RaisedAt;
+            public float MphAtRaise;
         }
 
         private static readonly ConditionalWeakTable<AutoEngineer, Start> Starts = new ConditionalWeakTable<AutoEngineer, Start>();
         private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
         private const float NotchStepSeconds = 2f;   // a diesel still standing gets one more notch this often
         private const float MovingMph = 0.3f;
+        private const float GainingMph = 0.1f;
         private static bool _logged;
 
         private static void Postfix(AutoEngineer __instance, ref float __result)
@@ -754,13 +756,24 @@ namespace CollegeEducatedAutoEngineer
                 // A new start: the game calls this every tick while the train is under 1 mph.
                 st.Since = now;
                 st.RaisedAt = now;
+                st.MphAtRaise = loco.VelocityMphAbs;
                 st.Notches = 1;
             }
             st.LastCall = now;
-            if (loco.VelocityMphAbs < MovingMph && now - st.RaisedAt >= NotchStepSeconds && st.Notches < 8)
+            // One more notch only while the train is not getting going: under 0.3 mph and less than 0.1 mph gained since the last step (in the
+            // 1.6.3 log an EMR 1000 was rolling at 0.07 mph in notch 1 and was put in notch 2 anyway).
+            float mph = loco.VelocityMphAbs;
+            if (mph < MovingMph && mph - st.MphAtRaise < GainingMph && now - st.RaisedAt >= NotchStepSeconds && st.Notches < 8)
             {
                 st.Notches++;
                 st.RaisedAt = now;
+                st.MphAtRaise = mph;
+            }
+            else if (mph - st.MphAtRaise >= GainingMph && now - st.RaisedAt >= NotchStepSeconds)
+            {
+                // Still gaining: start the next wait from here.
+                st.RaisedAt = now;
+                st.MphAtRaise = mph;
             }
             float cap = st.Notches * RolloutActionLimits.ThrottleNotch;
             if (result > cap)
