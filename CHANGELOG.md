@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.4
+
+- **Fix: the car lock guard of 1.5.3 treated Wheelslip's lock flag as always true.** In the 1.5.3 log 13 of 15 cars read as locked while accelerating with the brakes off (the flag is only rewritten while a car is braking, so an old "1" stays), which made the guard's ratio 1.0 the whole run. The flag is now only counted (`carsLocked`) for a car whose brake is on, and no longer drives the guard.
+- **The train brake handle is capped before it is applied.** That log also showed why holding after the fact cannot work: one service step (handle 0.15, a 13.5 psi reduction) took the car cylinders to 46 psi (0.65 of full) at 27 mph, far past a lock line that Wheelslip's wet-rail grip puts near a fifth of that for light cars, and the train slid down to a stop at about half the retardation. The guard now works out for the worst car the handle whose cylinders stay under 70 % of its lock line at the slowest speed the law locks at (where the brake-force curve is highest), and cuts a larger request to that handle (about 4.3 cylinder fractions per unit of handle, learned as the train brakes). If the cylinders are already past 95 % of the line the handle is eased back as before.
+
 ## 1.5.3
 
 - **Car brake lock guard reads the lock itself.** Wheelslip writes `wheelslip.wagonbrake.v1` on every car it has locked; the guard now counts those cars and treats any lock as past the line (the train brake is eased off) whatever its own estimate says. It also acts earlier: the train brake is held from 70 % of a car's lock line (was 85 %), eased off from 95 % (was 105 %), and the brake-force curve is read 2.5 m/s under the current speed (was 1.5) so the rise toward a stop is allowed for sooner. `ae_*.csv` gains `carsLocked`.

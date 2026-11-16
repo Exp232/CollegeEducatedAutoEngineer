@@ -90,12 +90,24 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>The worst car's cylinder fraction of its lock line at the given speed (1 = the wagon brake law locks it), NaN when it does not apply.</summary>
         internal static float WorstRatio(BaseLocomotive loco, float speedMps)
         {
+            return Measure(loco, speedMps, out float ratio, out _, out _) ? ratio : float.NaN;
+        }
+
+        /// <summary>
+        /// ratio: the worst car's brake force over its lock line with the cylinders as they are; ratioAtFull: the same with the brake fully applied
+        /// (so the cylinder fraction that reaches the line is 1 / ratioAtFull); cylinderFraction: the cylinders of the wagons, averaged (0 to 1).
+        /// </summary>
+        private static bool Measure(BaseLocomotive loco, float speedMps, out float ratio, out float ratioAtFull, out float cylinderFraction)
+        {
+            ratio = 0f;
+            ratioAtFull = 0f;
+            cylinderFraction = 0f;
             Init();
-            if (_current == null || loco == null) return float.NaN;
+            if (_current == null || loco == null) return false;
             try
             {
                 object s = _current.GetValue(null, null);
-                if (s == null || !B(s, _blEnabled, true) || !B(s, _wagonEnabled, true)) return float.NaN;
+                if (s == null || !B(s, _blEnabled, true) || !B(s, _wagonEnabled, true)) return false;
 
                 float mu = B(s, _wagonWeather, true) && _weather != null
                     ? Convert.ToSingle(_weather.Invoke(null, new object[] { loco }))
@@ -105,31 +117,38 @@ namespace CollegeEducatedAutoEngineer
                 float threshold = F(s, _threshold, 1.02f);
                 float v = Mathf.Max(Mathf.Max(F(s, _entry, 0.5f), EntryFloorMps), speedMps - LookaheadMps);
 
-                float worst = 0f;
-                bool any = false;
-                int locked = 0;
+                int n = 0, locked = 0;
+                float pct = 0f;
                 foreach (Car car in loco.EnumerateCoupled())
                 {
                     if (car == null || car is BaseLocomotive || car.IsLocomotive || car.IsDerailed || car.air == null) continue;
                     float m = mu;
                     if (_railGrip != null) m = Convert.ToSingle(_railGrip.Invoke(null, new object[] { car, mu }));
-                    if (LockedNow(car)) { locked++; }
                     float full = car.CalculateBrakingForce(1f, v) * factor;
                     if (full <= 1f) continue;
                     float line = threshold * m * car.Weight * 4.44822f;
-                    float r = car.air.brakePercent * full / line;
-                    any = true;
-                    if (r > worst) worst = r;
+                    // The cap must hold down to the slowest speed the law locks at, where the brake-force curve is highest.
+                    float atFull = Mathf.Max(full, car.CalculateBrakingForce(1f, EntryFloorMps) * factor) / line;
+                    float bp = car.air.brakePercent;
+                    n++;
+                    pct += bp;
+                    if (bp > 0.05f && LockedNow(car)) locked++;
+                    if (atFull > ratioAtFull) ratioAtFull = atFull;
+                    if (bp * full / line > ratio) ratio = bp * full / line;
                 }
                 LockedCars = locked;
-                if (locked > 0 && speedMps >= EntryFloorMps) worst = Mathf.Max(worst, EaseAt + 0.05f); // a car is locked now, whatever the model says
-                return any ? worst : float.NaN;
+                if (n == 0) return false;
+                cylinderFraction = pct / n;
+                return true;
             }
             catch (Exception)
             {
-                return float.NaN;
+                return false;
             }
         }
+
+        // Brake percent (cylinders) each unit of train brake handle ends at: the game gave 46 psi of 72 (0.645) for a handle of 0.15, about 4.3.
+        private static float _pctPerHandle = 4.3f;
 
         /// <summary>Returns true when the command was changed.</summary>
         internal static bool Filter(object loop, ref RolloutCommand command)
@@ -141,22 +160,38 @@ namespace CollegeEducatedAutoEngineer
             if (ae == null || ae.Locomotive == null) return false;
 
             float speed = Mathf.Abs(ae.Locomotive.velocity);
-            float ratio = WorstRatio(ae.Locomotive, speed);
+            if (!Measure(ae.Locomotive, speed, out float ratio, out float atFull, out float pct)) return false;
             LastRatio = ratio;
-            if (float.IsNaN(ratio)) return false;
 
             float applied = Convert.ToSingle(BrakeTaps.PApplied.GetValue(BrakeTaps.FTrainBrake.GetValue(loop), null));
+            // Learn the cylinders per handle once the cylinders have settled near the applied handle.
+            if (applied > 0.05f && pct > 0.05f)
+            {
+                float k = pct / applied;
+                if (k > 2f && k < 8f) _pctPerHandle = Mathf.Lerp(_pctPerHandle, k, 0.02f);
+            }
+
             if (ratio >= EaseAt && speed > EntryFloorMps && command.TrainBrakeSet >= applied - 0.005f)
             {
                 command = new RolloutCommand(command.Kind, command.ThrottleNotch, command.IndependentBrake01, Mathf.Max(0f, applied - EaseStep), true, command.BailOff, command.Cost, command.HoldCost);
                 Note(ae, ratio, "eases the train brake off");
                 return true;
             }
-            if (ratio >= HoldAt && command.TrainBrakeSet > applied + 0.005f)
+
+            if (command.TrainBrakeSet > applied + 0.005f && atFull > 0.01f)
             {
-                command = new RolloutCommand(RolloutActionKind.Hold, 0f, command.IndependentBrake01, applied, false, false, command.Cost, command.HoldCost);
-                Note(ae, ratio, "holds the train brake where it is");
-                return true;
+                // A service application takes the cylinders most of the way in one step, so the handle itself is capped at the level whose
+                // cylinders stay under the lock line (HoldAt of it), not just stopped once the cylinders have got there.
+                float maxHandle = HoldAt / atFull / _pctPerHandle;
+                float newSet = Mathf.Max(applied, Mathf.Min(command.TrainBrakeSet, maxHandle));
+                if (newSet < command.TrainBrakeSet - 0.005f)
+                {
+                    command = newSet > applied + 0.005f
+                        ? new RolloutCommand(command.Kind, command.ThrottleNotch, command.IndependentBrake01, newSet, true, command.BailOff, command.Cost, command.HoldCost)
+                        : new RolloutCommand(RolloutActionKind.Hold, 0f, command.IndependentBrake01, applied, false, false, command.Cost, command.HoldCost);
+                    Note(ae, ratio, "limits the train brake to a handle of " + maxHandle.ToString("0.00"));
+                    return true;
+                }
             }
             return false;
         }
