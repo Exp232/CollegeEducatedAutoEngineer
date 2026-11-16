@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.5
+
+- **Fix: no slip guard on a start whose effort per throttle was learned at speed.** In the 1.5.4 log the engine backed away from a stop and slipped for 65 s, from a standstill to 20 mph, with the ceiling at 1.0 throughout. The guard's effort per unit of throttle (`k`) was a single figure that last tracked the train at 35 mph, where the effort is about a third of the standing figure (11k lbf per throttle against 34k), so the ceiling worked out above 1 and was never applied. The figure is now kept per speed band (under 2.5, 2.5 to 8, 8 to 16, over 16 mph); a band that has not been measured uses the nearest slower one (a larger figure, so the ceiling errs low), and with none the guard has no figure and, if the wheels slip, closes the throttle until they grip and then measures it.
+- **Car wheel lock below 5 mph: the estimate is corrected from Wheelslip's own lock flag.** In the same log the estimate put the cars at 0.25 of their lock line with the cylinders at 0.45 (7 mph and down to a stop), yet Wheelslip had 13 of the 15 cars flagged locked, so the estimate is too low by a factor of 4 or more. The guard now raises a correction (`lockGain`, up to 12) while two or more cars are flagged locked with their cylinders over 0.15, scales the ratio and the handle cap by it, and lets it down slowly (0.5 % a second) while none are. Only cars with the cylinders over 0.15 count, because the flag keeps its last value when a car is not braking. `ae_*.csv` gains `lockGain`; if it climbs well above 1 the estimate's grip or brake figures differ from Wheelslip's and the next log will show by how much.
+
 ## 1.5.4
 
 - **Fix: the car lock guard of 1.5.3 treated Wheelslip's lock flag as always true.** In the 1.5.3 log 13 of 15 cars read as locked while accelerating with the brakes off (the flag is only rewritten while a car is braking, so an old "1" stays), which made the guard's ratio 1.0 the whole run. The flag is now only counted (`carsLocked`) for a car whose brake is on, and no longer drives the guard.

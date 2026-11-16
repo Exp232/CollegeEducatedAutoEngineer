@@ -31,6 +31,14 @@ namespace CollegeEducatedAutoEngineer
         private static MethodInfo _weather, _railGrip;
         private static bool _logged;
 
+        /// <summary>
+        /// How much the estimate has to be scaled up to match Wheelslip: in the 1.5.4 log 13 cars were flagged locked with the cylinders at 0.45
+        /// while the estimate said 0.25 of the line, so the estimate is corrected from the flag. Raised while cars are locked under braking, let
+        /// down slowly while none are.
+        /// </summary>
+        internal static float Gain = 1f;
+        private static float _gainTime;
+
         internal static int LockedCars;                // cars Wheelslip has locked right now
         internal static float LastRatio = float.NaN;   // for the log: worst car, cylinders as a fraction of its lock line
 
@@ -132,12 +140,14 @@ namespace CollegeEducatedAutoEngineer
                     float bp = car.air.brakePercent;
                     n++;
                     pct += bp;
-                    if (bp > 0.05f && LockedNow(car)) locked++;
+                    if (bp > 0.15f && LockedNow(car)) locked++;
                     if (atFull > ratioAtFull) ratioAtFull = atFull;
                     if (bp * full / line > ratio) ratio = bp * full / line;
                 }
                 LockedCars = locked;
                 if (n == 0) return false;
+                ratio *= Gain;
+                ratioAtFull *= Gain;
                 cylinderFraction = pct / n;
                 return true;
             }
@@ -162,6 +172,13 @@ namespace CollegeEducatedAutoEngineer
             float speed = Mathf.Abs(ae.Locomotive.velocity);
             if (!Measure(ae.Locomotive, speed, out float ratio, out float atFull, out float pct)) return false;
             LastRatio = ratio;
+
+            if (Time.time - _gainTime >= 0.5f)
+            {
+                _gainTime = Time.time;
+                if (LockedCars >= 2 && ratio < 1.1f) Gain = Mathf.Min(12f, Gain * Mathf.Max(1.15f, 1.1f / Mathf.Max(0.05f, ratio)));
+                else if (LockedCars == 0 && pct > 0.15f && speed > 0.5f) Gain = Mathf.Max(1f, Gain * 0.995f);
+            }
 
             float applied = Convert.ToSingle(BrakeTaps.PApplied.GetValue(BrakeTaps.FTrainBrake.GetValue(loop), null));
             // Learn the cylinders per handle once the cylinders have settled near the applied handle.

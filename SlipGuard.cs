@@ -35,7 +35,8 @@ namespace CollegeEducatedAutoEngineer
             public bool WasSlipping;
             public float SlipSince = -1f;    // when the wheels started slipping (-1 = not slipping)
             public int Slips;
-            public float K;                  // tractive effort per unit of throttle (lbf), measured while the wheels grip
+            public float K;                  // tractive effort per unit of throttle (lbf) at the current speed, measured while the wheels grip
+            public float[] KBand = new float[4];   // the same per speed band: effort per throttle falls steeply with speed
             public float Demand;             // what the controller last asked for before the ceiling was applied
             public float DemandTime = -100f;
             public bool SandNeed;            // the train asks for more effort than dry rail carries
@@ -62,6 +63,19 @@ namespace CollegeEducatedAutoEngineer
 
         /// <summary>0 at 3 mph and under, 1 from 15 mph: how much of a high-speed treatment a slip gets (a slip at speed is eased, not slammed).</summary>
         private static float SpeedFactor(float mph) { return Mathf.Clamp01((mph - 3f) / 12f); }
+
+        /// <summary>Speed bands for the effort per throttle: a figure measured at 35 mph (about a third of the standing one) says nothing at a standstill.</summary>
+        private static int Band(float mph) { return mph < 2.5f ? 0 : (mph < 8f ? 1 : (mph < 16f ? 2 : 3)); }
+
+        /// <summary>The effort per throttle for this speed: its own band, else the nearest slower one (larger, so the ceiling errs low), else 0 (unknown).</summary>
+        private static float KFor(State st, float mph)
+        {
+            for (int b = Band(mph); b >= 0; b--)
+            {
+                if (st.KBand[b] > 0f) return st.KBand[b];
+            }
+            return 0f;
+        }
 
         internal static bool Available { get { return FStates != null; } }
 
@@ -152,8 +166,10 @@ namespace CollegeEducatedAutoEngineer
             if (!raw && lever > 0.05f && effort > 100f)
             {
                 float k = effort / lever;
-                st.K = st.K <= 0f ? k : Mathf.Lerp(st.K, k, 1f - Mathf.Exp(-dt / 1f));
+                int b = Band(mph);
+                st.KBand[b] = st.KBand[b] <= 0f ? k : Mathf.Lerp(st.KBand[b], k, 1f - Mathf.Exp(-dt / 1f));
             }
+            st.K = KFor(st, mph);
 
             float limitNo, limitSand;
             bool haveLimit = SlipSand.Limits(loco, out limitNo, out limitSand);
