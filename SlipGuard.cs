@@ -79,6 +79,12 @@ namespace CollegeEducatedAutoEngineer
             effortLbf = st.Effort;
         }
 
+        /// <summary>The wheels slipped within the last <paramref name="seconds"/> seconds.</summary>
+        internal static bool SlippedRecently(AutoEngineer ae, float seconds)
+        {
+            return ae != null && States.TryGetValue(ae, out State st) && Time.time - st.LastSlip < seconds;
+        }
+
         /// <summary>The throttle ceiling for this engineer, 1 when there is none.</summary>
         internal static float Ceiling(AutoEngineer ae)
         {

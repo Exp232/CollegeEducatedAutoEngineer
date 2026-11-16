@@ -1,5 +1,6 @@
 using System;
 using System.Reflection;
+using KeyValue.Runtime;
 using HarmonyLib;
 using Model;
 using Model.AI;
@@ -18,10 +19,10 @@ namespace CollegeEducatedAutoEngineer
     /// </summary>
     internal static class WagonLock
     {
-        private const float HoldAt = 0.85f;       // stop applying the train brake from this fraction of the lock line
-        private const float EaseAt = 1.05f;       // ease it off above this
+        private const float HoldAt = 0.7f;        // stop applying the train brake from this fraction of the lock line
+        private const float EaseAt = 0.95f;      // ease it off above this
         private const float EaseStep = 0.04f;
-        private const float LookaheadMps = 1.5f;  // the brake force curve is read at this much less than the current speed
+        private const float LookaheadMps = 2.5f;  // the brake force curve is read at this much less than the current speed
         private const float EntryFloorMps = 0.5f;
 
         private static bool _tried;
@@ -30,6 +31,7 @@ namespace CollegeEducatedAutoEngineer
         private static MethodInfo _weather, _railGrip;
         private static bool _logged;
 
+        internal static int LockedCars;                // cars Wheelslip has locked right now
         internal static float LastRatio = float.NaN;   // for the log: worst car, cylinders as a fraction of its lock line
 
         private static void Init()
@@ -79,6 +81,12 @@ namespace CollegeEducatedAutoEngineer
             catch (Exception) { return fallback; }
         }
 
+        private static bool LockedNow(Car car)
+        {
+            try { return car.KeyValueObject != null && car.KeyValueObject["wheelslip.wagonbrake.v1"].StringValueOrDefault((string)null) == "1"; }
+            catch (Exception) { return false; }
+        }
+
         /// <summary>The worst car's cylinder fraction of its lock line at the given speed (1 = the wagon brake law locks it), NaN when it does not apply.</summary>
         internal static float WorstRatio(BaseLocomotive loco, float speedMps)
         {
@@ -99,11 +107,13 @@ namespace CollegeEducatedAutoEngineer
 
                 float worst = 0f;
                 bool any = false;
+                int locked = 0;
                 foreach (Car car in loco.EnumerateCoupled())
                 {
                     if (car == null || car is BaseLocomotive || car.IsLocomotive || car.IsDerailed || car.air == null) continue;
                     float m = mu;
                     if (_railGrip != null) m = Convert.ToSingle(_railGrip.Invoke(null, new object[] { car, mu }));
+                    if (LockedNow(car)) { locked++; }
                     float full = car.CalculateBrakingForce(1f, v) * factor;
                     if (full <= 1f) continue;
                     float line = threshold * m * car.Weight * 4.44822f;
@@ -111,6 +121,8 @@ namespace CollegeEducatedAutoEngineer
                     any = true;
                     if (r > worst) worst = r;
                 }
+                LockedCars = locked;
+                if (locked > 0 && speedMps >= EntryFloorMps) worst = Mathf.Max(worst, EaseAt + 0.05f); // a car is locked now, whatever the model says
                 return any ? worst : float.NaN;
             }
             catch (Exception)

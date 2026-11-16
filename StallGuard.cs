@@ -55,7 +55,8 @@ namespace CollegeEducatedAutoEngineer
             public OrderWaypoint? LatchWaypoint;
         }
 
-        private const float RollbackMph = 0.5f;
+        private const float RollbackMph = 0.4f;
+        private const float SlipRollbackMph = 0.2f;
         private const float ArmMph = 1f;
 
         private static readonly ConditionalWeakTable<AutoEngineer, State> States = new ConditionalWeakTable<AutoEngineer, State>();
@@ -234,7 +235,9 @@ namespace CollegeEducatedAutoEngineer
                 if (along >= ArmMph || (Mathf.Abs(along) < StandMaxMph && BrakeFix.ReadThrottle(ae) >= StandMinThrottle)) st.Armed = true;
                 else return false;
             }
-            if (along > -RollbackMph) return false;
+            // A train that has just slipped on its start and now slides back is declared sooner: the slip guard has shut the throttle on it.
+            float rollback = SlipGuard.SlippedRecently(ae, 6f) ? SlipRollbackMph : RollbackMph;
+            if (along > -rollback) return false;
             var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
             float grade = targets != null ? targets.AverageGradeUnder : 0f;
             Latch(ae, st, $"Stall guard: rolling back at {-along:0.0} mph against the order{(Mathf.Abs(grade) > 0.01f ? $" on a {-grade:0.0}% grade" : "")}.",

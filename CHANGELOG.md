@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.3
+
+- **Car brake lock guard reads the lock itself.** Wheelslip writes `wheelslip.wagonbrake.v1` on every car it has locked; the guard now counts those cars and treats any lock as past the line (the train brake is eased off) whatever its own estimate says. It also acts earlier: the train brake is held from 70 % of a car's lock line (was 85 %), eased off from 95 % (was 105 %), and the brake-force curve is read 2.5 m/s under the current speed (was 1.5) so the rise toward a stop is allowed for sooner. `ae_*.csv` gains `carsLocked`.
+- **Stall guard acts sooner on a slipped start.** A train that slipped in the last 6 s and now rolls back is declared stalled at 0.2 mph back (was 0.5); a rollback with no slip is declared at 0.4 mph (was 0.5). In the 20:22 session the slip guard shut the throttle on a 1.7 % start that the locomotive cannot make (about 28k lbf of grade against 25k with sand), and the declaration came 4 s after the first slip.
+
 ## 1.5.2
 
 - **Fix: the slip guard stayed put while the rail under it got worse.** In the 1.5.1 log the standing start slipped for 11 s with the ceiling stuck at 0.43: burn marks the engine had made on the rail at that spot cut the wheels' limit from 17.2k to 12.4k lbf, but while slipping the guard aimed at the game's recovery level (0.09 times the drivers' weight), which is about the same as the limit, so it never went lower. While slipping it now aims at the lower of that level and 0.85 of the margin level of the current limit.
