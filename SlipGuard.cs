@@ -46,7 +46,13 @@ namespace CollegeEducatedAutoEngineer
             public bool LoggedLimit;
             public float Required = float.NaN;   // lbf the train needs to move (grade, rolling and starting resistance, a little acceleration)
             public bool Wet;                 // the weather has cut the rail's grip below the dry figure
+            public float LastLever = -1f;    // the lever at the last tick, and since when it has been steady
+            public float LeverSince;
         }
+
+        // A diesel's lever works in eighths (the rollout controller's notch is 0.125) and under one notch the engine idles, so a ceiling below that
+        // stalls a start (in the 1.5.8 log an EMR 9000 held at 0.045 to 0.07 made 1800 to 3200 lbf and stood for 25 s).
+        private const float DieselNotch = 0.125f;
 
         private static readonly ConditionalWeakTable<AutoEngineer, State> States = new ConditionalWeakTable<AutoEngineer, State>();
         private static readonly FieldInfo FStates = AccessTools.Field(typeof(BaseLocomotive), "DriverWheelStates");
@@ -112,7 +118,7 @@ namespace CollegeEducatedAutoEngineer
         /// </summary>
         private static bool AtSlipCap(BaseLocomotive loco, float effort, float lever)
         {
-            if (lever < 0.05f || effort < 100f) return false;
+            if (lever < 0.005f || effort < 100f) return false;
             DriverWheelState[] ws = Wheels(loco);
             if (ws == null) return false;
             float aw = 0f;
@@ -228,9 +234,16 @@ namespace CollegeEducatedAutoEngineer
             // Effort per unit of throttle, measured while the wheels grip (a slipping wheelset's effort is cut, so it says nothing), and not
             // in the second after a slip. A diesel's effort does not follow the notch evenly (a standing EMR 1200 gave 63k to 89k lbf per unit),
             // so a band takes a higher figure at once and lets it down slowly: the ceiling errs low.
-            if (!raw && now - st.LastSlip > 1f && lever > 0.05f && effort > 100f)
+            if (st.LastLever < 0f || Mathf.Abs(lever - st.LastLever) > 0.01f) st.LeverSince = now;
+            st.LastLever = lever;
+            bool diesel = loco is DieselLocomotive;
+            // Only with the lever steady for 0.75 s (a diesel's effort trails its notch, so a sample just after the lever moved belongs to the
+            // old notch), a diesel's lever counted as at least one notch, and never above twice the locomotive's rated starting effort per unit.
+            if (!raw && now - st.LastSlip > 1f && now - st.LeverSince >= 0.75f && lever > 0.05f && effort > 100f)
             {
-                float k = effort / lever;
+                float k = effort / (diesel ? Mathf.Max(lever, DieselNotch) : lever);
+                float rated = loco.RatedTractiveEffort;
+                if (rated > 100f) k = Mathf.Min(k, 2f * rated);
                 int b = Band(mph);
                 if (st.KBand[b] <= 0f || k > st.KBand[b]) st.KBand[b] = k;
                 else st.KBand[b] = Mathf.Lerp(st.KBand[b], k, 1f - Mathf.Exp(-dt / 10f));
@@ -317,6 +330,7 @@ namespace CollegeEducatedAutoEngineer
                 }
                 target = Mathf.Clamp01(wanted / st.K);
                 if (target > 0.999f) target = 1f;
+                if (!slipping && loco is DieselLocomotive) target = Mathf.Max(target, DieselNotch);
             }
             else if (slipping)
             {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.5.9
+
+- **Fix: a diesel could be held below one notch and stand still.** In the 1.5.8 log the EMR 9000's third start was held at a throttle of 0.045 to 0.07 for 25 s. Below one notch (0.125) a diesel idles: it made 1800 to 3200 lbf and the train barely moved. The slip guard had learned an effort per throttle of over 500k lbf from a sample at 0.045 where the wheels were slipping (25950 lbf, the slipping cap of its 259500 lb on the drivers), which the new slip check of 1.5.8 skipped because the lever was under 0.05. Now: the slip check works at any lever; a diesel's ceiling never goes under one notch unless the wheels slip; the effort per throttle is only measured with the lever steady for 0.75 s (a diesel's effort trails its notch), a diesel's lever counts as at least one notch, and the figure is never taken above twice the locomotive's rated starting effort.
+- Sand: in the same log (diesel, 14 cars, 440 tons, level track) the engineer did not sand at all; the train needed about 3,000 to 9,000 lbf against 35,000 lbf of grip, and there was no slip worth sanding for. The weather counted as wet throughout (`wet` 1), but the engineer never asked for more than the wet rail carried.
+
 ## 1.5.8
 
 - **Sand only when it is needed.** The engineer now sands ahead of a slip in two cases only: when the train itself needs more effort than the dry rail carries (its tonnage on the grade under it, from a stand or at speed: rolling resistance, this mod's starting resistance, the grade and a slow gain of speed, against 92 % of the wheels' dry limit), or when the weather has made the rail slippery (Wheelslip's weather grip more than 5 % under the dry figure) and the engineer asks for more than it carries. On a dry rail an open throttle is no longer a reason to sand: the slip guard holds the throttle to what the wheels carry. After a slip it sands as before, and it never sands with the throttle shut. Once the reason has gone the sand stops after 4 s (was 8). `ae_*.csv` gains `reqLbf` (the effort the train needs) and `wet`.
