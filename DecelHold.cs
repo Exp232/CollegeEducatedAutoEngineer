@@ -89,6 +89,16 @@ namespace CollegeEducatedAutoEngineer
         private const float StopWithinMeters = 2.5f;
         private const float WaypointHoldMeters = 1.5f;
         private const float StandingMps = 0.09f;   // 0.2 mph
+        private const float GameArrivalMeters = 1f;   // the game's own "at the target" distance
+        private const float NewTargetJumpMeters = 0.3f;
+
+        private sealed class Arrival
+        {
+            public bool Arrived;
+            public float LastDistance = 1e9f;
+        }
+
+        private static readonly ConditionalWeakTable<AutoEngineer, Arrival> Arrivals = new ConditionalWeakTable<AutoEngineer, Arrival>();
 
         private static void Postfix(AutoEngineer __instance, ref float __result)
         {
@@ -99,8 +109,18 @@ namespace CollegeEducatedAutoEngineer
                 // 0.99 m can be eased back past 1 m by its coupler slack, and the game then starts it again for the last few centimetres; with
                 // the slip guard's starting throttle it only creeps back to 0.99 m and the cycle repeats (an EMR 1000 did that for nearly two
                 // minutes in the 1.6.1 log). Standing still, a stop target within 1.5 m counts as reached.
+                // Only for a stop the train has arrived at (been within the game's 1 m of): a waypoint newly set a few feet away, as for spotting a
+                // car, is driven to as before (1.6.2 to 1.6.5 held a standing train at any stop target within 1.5 m, so a waypoint set 4 ft ahead
+                // was never run to). A new target shows as a jump in distance; slack only moves a standing train a few centimetres.
                 var loco = __instance.Locomotive;
-                if (loco != null && Mathf.Abs(loco.velocity) < StandingMps && DecelHold.DistanceToStopTarget(__instance) < WaypointHoldMeters) __result = 0f;
+                float dist = DecelHold.DistanceToStopTarget(__instance);
+                Arrival a = Arrivals.GetOrCreateValue(__instance);
+                if (dist >= WaypointHoldMeters || Mathf.Abs(dist - a.LastDistance) > NewTargetJumpMeters) a.Arrived = false;
+                if (dist < GameArrivalMeters) a.Arrived = true;
+                a.LastDistance = dist;
+                // Only between 1 m and 1.5 m: inside 1 m the game's own rules decide, exactly as stock, so the hold can never keep a train that
+                // the game would move (a user on 1.6.4 had trains stopping and holding about a foot from the waypoint).
+                if (a.Arrived && loco != null && Mathf.Abs(loco.velocity) < StandingMps && dist >= GameArrivalMeters && dist < WaypointHoldMeters) __result = 0f;
                 return;
             }
             if (DecelHold.DistanceToStopTarget(__instance) < StopWithinMeters) __result = 0f;

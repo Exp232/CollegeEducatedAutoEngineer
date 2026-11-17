@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.6.7
+
+- **The waypoint stop hold only covers the slack case, 1 to 1.5 m from the stop.** A user on 1.6.4 reported trains stopping and holding about a foot from the waypoint, holding up a passenger train. From 1.6.2 the hold made a standing train's target speed 0 anywhere within 1.5 m of a stop target (including one up to 5 m behind it), which also overrode the game inside 1 m. It now acts only between 1 m and 1.5 m, after the train has arrived (1.6.6): inside 1 m the game's own rules apply exactly as stock, and a new short waypoint is driven to as normal.
+
+## 1.6.6
+
+- **Fix: a waypoint set a few feet away was never run to (1.6.2 to 1.6.5).** The 1.6.2 fix for the stop-start loop at a waypoint held a standing train at any stop target within 1.5 m, so a short spotting move (in a user's log, a waypoint set 4 ft ahead) counted as already done and the engineer did not move. The hold now applies only to a stop the train has arrived at (been within the game's own 1 m of) and has stood at since; a new target shows as a jump in distance and is driven to as normal. The loop fix itself is unchanged.
+
 ## 1.6.5
 
 - **New: "Slip guard in manual driving" option.** The game keeps a locomotive's auto engineer enabled while it is driven by hand (it only marks it off duty), so the slip guard and its sanding were also holding the throttle and sanding under manual control. That stays the default; switching the new toggle off leaves a hand-driven locomotive alone (no throttle ceiling, no sand) so the wheels can be slipped on purpose, while the engineer keeps both. Settings window toggle under the slip guard (`SlipGuardManual`, on). Requested by a user.
