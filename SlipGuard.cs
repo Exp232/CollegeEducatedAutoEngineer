@@ -194,7 +194,9 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>Every frame while the engineer runs.</summary>
         internal static void Tick(AutoEngineer ae)
         {
-            if (!Main.Settings.SlipGuard && !Main.Settings.SlipSand)
+            // The game keeps a locomotive's AutoEngineer enabled while it is driven by hand (it only sets Run to false), so this runs for manual
+            // driving too. With "Slip guard in manual driving" off, a hand-driven locomotive is left alone: no ceiling, no sand.
+            if ((!Main.Settings.SlipGuard && !Main.Settings.SlipSand) || (!ae.Run && !Main.Settings.SlipGuardManual))
             {
                 Release(ae);
                 return;

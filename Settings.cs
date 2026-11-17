@@ -238,6 +238,12 @@ namespace CollegeEducatedAutoEngineer
         /// </summary>
         public bool SlipGuard = true;
 
+        /// <summary>
+        /// The slip guard and its sanding also look after a locomotive driven by hand (the game keeps its auto engineer enabled while off duty).
+        /// Off: manual driving is left to the player, so the wheels can be slipped on purpose. Only matters with the slip guard or sanding on.
+        /// </summary>
+        public bool SlipGuardManual = true;
+
         /// <summary>The slip guard keeps the tractive effort at this fraction of what the driver wheels carry before they slip. Settings.xml only.</summary>
         public float SlipMargin = 0.92f;
 

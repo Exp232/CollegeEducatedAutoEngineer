@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.6.5
+
+- **New: "Slip guard in manual driving" option.** The game keeps a locomotive's auto engineer enabled while it is driven by hand (it only marks it off duty), so the slip guard and its sanding were also holding the throttle and sanding under manual control. That stays the default; switching the new toggle off leaves a hand-driven locomotive alone (no throttle ceiling, no sand) so the wheels can be slipped on purpose, while the engineer keeps both. Settings window toggle under the slip guard (`SlipGuardManual`, on). Requested by a user.
+
 ## 1.6.4
 
 - **Diesel notch-1 start: no step up while the train is getting going.** In the 1.6.3 log both EMR 1000 starts were already rolling in notch 1 (0.04 to 0.07 mph) when the 2-second step put them in notch 2, because the step only asked whether the train was still under 0.3 mph. It now steps up only while the train has gained less than 0.1 mph since the last step; a train that is gaining speed stays in notch 1 until the engineer takes over at 1 mph. In the same log the starts took 6 to 12 s to reach 2 mph with no more than one slip each, no sand used and no car locked.
