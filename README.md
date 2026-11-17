@@ -93,7 +93,7 @@ Needs Railroader 0.6.0 or later; uses the game's built-in mod loader.
 At start-up the mod checks that everything it patches is still in the game. Features whose targets are missing are switched off and the rest keep working; the result is one summary block in the game log (`Player.log`).
 
 ## Compatibility
-Built for Railroader 0.6.x (played on 0.6.2). Patches the engineer's rollout controller commands, its target list, contextual target speed and start-up throttle, the planner's signal-sight distances, and (with Wheelslip Prototype) when Wheelslip's brake lock law runs. Other mods patching the same code may conflict. Officially supports Waypoint Queue; works with Wheelslip Prototype (optional). Disable it in the game's mod list to restore stock behaviour.
+Built for Railroader 0.6.x (played on 0.6.3; still runs on 0.6.2). Patches the engineer's rollout controller commands, its target list, contextual target speed and start-up throttle, the planner's signal-sight distances, and (with Wheelslip Prototype) when Wheelslip's brake lock law runs. Other mods patching the same code may conflict. Officially supports Waypoint Queue; works with Wheelslip Prototype (optional). Disable it in the game's mod list to restore stock behaviour.
 
 ## Known limits
 Tested on steam-hauled freight up to 1-2% grades and on diesel freight on mostly level track (EMR 1000, 1200 and 9000, with and without sand). The slip guard learns each locomotive as it goes, so the first start after the engineer is switched on can still slip once. Diesel fuel use follows the game's own model, which burns nothing at idle. Fuel savings depend on the route and train.

@@ -75,7 +75,7 @@ namespace CollegeEducatedAutoEngineer
         }
 
         // Wheelslip runs its lock law in a postfix on Car.CalculateBrakingForce, so every caller moves a car's lock state, not only the physics:
-        // the auto engineer asks for each car at a full application (CalculateTotalAvailableBrakingAtSpeed) and the brake pressure simulator for
+        // the auto engineer asks for each car at a full application (CalculateTotalAvailableBrakingAtSpeed, CalculateBrakingAtSpeed from 0.6.3) and the brake pressure simulator for
         // pressures that are only being tried, and a full application is past the lock line, so planning alone locked the cars. With the guard
         // on, the law is only let run inside IntegrationSet.CalculateRetardingForce (the physics); other callers get the game's own force.
         // Wheelslip loads after this mod, so the patch is put in on the first auto engineer command.

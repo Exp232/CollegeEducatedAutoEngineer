@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.7.1
+
+Brought up to date with Railroader 0.6.3 (experimental). Still runs on 0.6.2; no change to the defaults.
+
+- **Fix for 0.6.3: the direction stop works again.** 0.6.3 makes the game's engineer drop out of its speed loop the moment a moving train is told to stop or to go the other way, and stop it with the train brake and the locomotive brake both at full. That skipped this mod's direction stop (train brake only, the gentle 0.15 brake limit and the car wheel lock cap all work through the speed loop). While that stop is under way (2 mph and up, enough cars behind, still slowing) the speed loop now keeps the stop as before; under 2 mph, for a light engine, or when the stop is handed back, the game's new full stop finishes it. Stops at a waypoint, station or signal are left to the game, including its new fix for creeping past a stop mark.
+- **Planner weights:** 0.6.3 limits the controller's undershoot margin to a share of the target speed as well as a fixed figure; the margin scale (`PlanUndershootDeadbandScale`, 1 by default) now applies to both.
+- Checked every game method and field the mod uses against 0.6.3: all present with the same signatures, so every feature loads. README and notes say 0.6.3.
+
 ## 1.7.0
 
 Code and documentation clean-up (no change to the defaults).

@@ -198,12 +198,48 @@ namespace CollegeEducatedAutoEngineer
     }
 
     /// <summary>
+    /// Game 0.6.3 leaves the speed loop as soon as a moving train's command is zero or the other way
+    /// (IsMovingAgainstCommand) and goes to StopAndHold: full train brake and full locomotive brake at once. That
+    /// is what the stock engineer now does for a direction change or a speed order of 0 on a moving train, and it
+    /// skips the direction stop above (the train brake alone, the gentle brake limit and the car wheel lock cap
+    /// all live in the speed loop). While that stop is under way (2 mph and up, enough cars behind, still
+    /// slowing) this reports "not against the command", so the speed loop keeps the stop as in 0.6.2; under
+    /// 2 mph, or when the stop is handed back, the game's StopAndHold finishes it. A stop target (a waypoint, a
+    /// station, a red signal) is never touched: it has a target, so StopWithoutTarget is false.
+    /// </summary>
+    [HarmonyPatch]
+    internal static class AutoEngineer_IsMovingAgainstCommand_Patch
+    {
+        private static MethodBase TargetMethod()
+        {
+            return AccessTools.PropertyGetter(typeof(AutoEngineer), "IsMovingAgainstCommand");
+        }
+
+        private static void Postfix(AutoEngineer __instance, ref bool __result)
+        {
+            if (!__result || !Main.Active) return;
+            try
+            {
+                var s = Main.Settings;
+                if (!s.DirectionStopTrainBrakeOnly && s.DirectionStopBrakeLimit <= 0f) return;
+                if (BrakeGuidance.StopWithoutTarget(__instance)) __result = false;
+            }
+            catch (Exception e)
+            {
+                Main.Mod.Logger.LogException(e);
+            }
+        }
+    }
+
+    /// <summary>
     /// Scales the rollout controller's score weights (each setting is a multiplier, 1 = the game's value, so a
     /// game update that retunes the stock weights still carries through).
     /// </summary>
     [HarmonyPatch(typeof(RolloutController), "WeightsFor", new[] { typeof(AutoEngineer) })]
     internal static class RolloutController_WeightsFor_Patch
     {
+        private static readonly FieldInfo FFraction = AccessTools.Field(typeof(RolloutScoreWeights), "UndershootDeadbandFraction");
+
         private static void Postfix(ref RolloutScoreWeights __result)
         {
             try
@@ -214,6 +250,14 @@ namespace CollegeEducatedAutoEngineer
                 __result.UndershootDeadbandMps *= Mathf.Max(0f, s.PlanUndershootDeadbandScale);
                 __result.Ceiling *= Mathf.Max(0f, s.PlanCeilingScale);
                 __result.IndependentUse *= Mathf.Max(0f, s.PlanIndependentUseScale);
+                // 0.6.3: the undershoot deadband is min(UndershootDeadbandMps, UndershootDeadbandFraction x target),
+                // so the same margin scale goes on the fraction. Reflection keeps 0.6.2 (no such field) working.
+                if (FFraction != null && s.PlanUndershootDeadbandScale != 1f)
+                {
+                    object boxed = __result;
+                    FFraction.SetValue(boxed, (float)FFraction.GetValue(boxed) * Mathf.Max(0f, s.PlanUndershootDeadbandScale));
+                    __result = (RolloutScoreWeights)boxed;
+                }
             }
             catch (Exception e)
             {

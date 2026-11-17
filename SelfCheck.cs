@@ -86,6 +86,7 @@ namespace CollegeEducatedAutoEngineer
                     () => BrakeGuidance.TrainBrakeType != null && Method(BrakeGuidance.TrainBrakeType, "CalculateMaxEffectiveApplication", Type.EmptyTypes, typeof(float)),
                 ["RolloutController.WeightsFor(AutoEngineer)"] =
                     () => Method(typeof(RolloutController), "WeightsFor", new[] { typeof(AutoEngineer) }, typeof(RolloutScoreWeights)),
+                ["AutoEngineer.IsMovingAgainstCommand"] = () => AccessTools.PropertyGetter(AE, "IsMovingAgainstCommand")?.ReturnType == typeof(bool),
                 ["AutoEngineer._speedControlLoop"] = () => Field(AE, "_speedControlLoop", null),
                 ["AutoEngineer.SpeedControlLoop._rolloutController"] =
                     () => AccessTools.Inner(AE, "SpeedControlLoop") != null && Field(AccessTools.Inner(AE, "SpeedControlLoop"), "_rolloutController", typeof(RolloutController)),
@@ -228,8 +229,8 @@ namespace CollegeEducatedAutoEngineer
                     Name = "Gentle direction-change stop",
                     On = () => s.DirectionStopBrakeLimit > 0f,
                     TurnOff = () => s.DirectionStopBrakeLimit = 0f,
-                    Needs = new[] { "AutoEngineer.TrainBrake", "AutoEngineer.TrainBrake._ae", "AutoEngineer.TrainBrake.CalculateMaxEffectiveApplication()", "AutoEngineer._targets", "Targets.MaxSpeedMph", "Targets.AllTargets" },
-                    Patches = new[] { typeof(TrainBrake_CalculateMaxEffectiveApplication_Patch) },
+                    Needs = new[] { "AutoEngineer.TrainBrake", "AutoEngineer.TrainBrake._ae", "AutoEngineer.TrainBrake.CalculateMaxEffectiveApplication()", "AutoEngineer._targets", "Targets.MaxSpeedMph", "Targets.AllTargets", "AutoEngineer.IsMovingAgainstCommand" },
+                    Patches = new[] { typeof(TrainBrake_CalculateMaxEffectiveApplication_Patch), typeof(AutoEngineer_IsMovingAgainstCommand_Patch) },
                 },
                 new Feature
                 {
@@ -237,8 +238,8 @@ namespace CollegeEducatedAutoEngineer
                     AlwaysPatch = true,
                     On = () => s.DirectionStopTrainBrakeOnly,
                     TurnOff = () => s.DirectionStopTrainBrakeOnly = false,
-                    Needs = new[] { "AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)", "AutoEngineer.SpeedControlLoop._ae, _trainBrake, _measuredAccel", "AutoEngineer._targets", "Targets.MaxSpeedMph", "Targets.AllTargets" },
-                    Patches = new[] { typeof(SpeedControlLoop_ApplyRolloutCommand_Patch) },
+                    Needs = new[] { "AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)", "AutoEngineer.SpeedControlLoop._ae, _trainBrake, _measuredAccel", "AutoEngineer._targets", "Targets.MaxSpeedMph", "Targets.AllTargets", "AutoEngineer.IsMovingAgainstCommand" },
+                    Patches = new[] { typeof(SpeedControlLoop_ApplyRolloutCommand_Patch), typeof(AutoEngineer_IsMovingAgainstCommand_Patch) },
                 },
                 new Feature
                 {
