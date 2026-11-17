@@ -8,11 +8,13 @@ using UnityEngine;
 namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
-    /// Optional fuel saving (BrakeTapSuppressMph, off by default). The rollout controller sometimes applies the train
+    /// Brake tap limit (BrakeTapSuppressMph, 2 mph by default, 0 = off). The rollout controller sometimes applies the train
     /// brake to shed a mph or two, which spends fuel to gain the speed and then throws it away as heat. When the
     /// train is only a little over its target, is not gaining speed, and nothing ahead needs it to slow, this turns
     /// that first application into a coast; if the speed then rises past the margin or a lower limit comes into
-    /// range, the controller's brake application goes through as usual. Road and Waypoint modes (a stop within about 1500 m or 80 s always stays with the controller).
+    /// range, the controller's brake application goes through as usual. Road and Waypoint modes (a stop within about
+    /// 1500 m or 80 s always stays with the controller). This class also holds the rollout loop's reflected members
+    /// that the other command filters share.
     /// </summary>
     internal static class BrakeTaps
     {
@@ -27,9 +29,7 @@ namespace CollegeEducatedAutoEngineer
         internal static readonly FieldInfo FTrainBrake = LoopType != null ? AccessTools.Field(LoopType, "_trainBrake") : null;
         internal static readonly FieldInfo FMeasuredAccel = LoopType != null ? AccessTools.Field(LoopType, "_measuredAccel") : null;
         internal static readonly PropertyInfo PApplied = BrakeGuidance.TrainBrakeType != null ? AccessTools.Property(BrakeGuidance.TrainBrakeType, "AppliedBrakeSet") : null;
-        private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
         private static readonly FieldInfo FContextual = AccessTools.Field(typeof(AutoEngineer), "_debugContextualTargetVelocity");
-        internal static FieldInfo FTargetsField => FTargets;
         internal static FieldInfo FContextualField => FContextual;
 
         /// <summary>The train brake set the loop has applied now (0 = released), or NaN.</summary>
@@ -43,20 +43,31 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>True when a lower limit or a stop ahead is close enough that the controller must be left to brake.</summary>
         internal static bool SlowingNeededAhead(AutoEngineer.Targets targets, float speedMps)
         {
+            return SlowingNeededAhead(targets, speedMps, out _);
+        }
+
+        /// <summary>The same, saying whether it is a stop ("stopAhead") or a lower limit ("limitAhead").</summary>
+        private static bool SlowingNeededAhead(AutoEngineer.Targets targets, float speedMps, out string why)
+        {
+            why = null;
             foreach (var t in targets.AllTargets)
             {
                 if (t.Distance <= 0f) continue;
                 float tv = Mathf.Abs(t.SpeedMph) / MpsToMph;
                 if (tv >= speedMps - 0.9f) continue;
                 float window = tv < 0.5f ? Mathf.Max(1500f, speedMps * 80f) : Mathf.Max(600f, speedMps * 40f);
-                if (t.Distance < window) return true;
+                if (t.Distance < window)
+                {
+                    why = tv < 0.5f ? "stopAhead" : "limitAhead";
+                    return true;
+                }
             }
             return false;
         }
 
         private static readonly MethodInfo MCylinder = AccessTools.Method(typeof(AutoEngineer), "AverageTrainBrakeCylinder");
 
-        internal static bool Available => MCylinder != null && LoopType != null && FAe != null && FTrainBrake != null && FMeasuredAccel != null && PApplied != null && FTargets != null && FContextual != null;
+        internal static bool Available => MCylinder != null && LoopType != null && FAe != null && FTrainBrake != null && FMeasuredAccel != null && PApplied != null && BrakeFix.TargetsReadable && FContextual != null;
 
         private static readonly System.Collections.Generic.SortedDictionary<string, int> Rejects = new System.Collections.Generic.SortedDictionary<string, int>();
 
@@ -95,7 +106,7 @@ namespace CollegeEducatedAutoEngineer
             // Only the first real application: the cylinders must still be (nearly) empty.
             if (Convert.ToSingle(MCylinder.Invoke(ae, null)) > CylinderPsiMax) return Reject("cylinders");
 
-            var targets = FTargets.GetValue(ae) as AutoEngineer.Targets;
+            var targets = BrakeFix.TargetsOf(ae);
             if (targets == null || targets.AllTargets == null) return Reject("noTargets");
             // Road and Waypoint only. In Waypoint mode the stop is protected by the distance check below, not by the mode.
             string mode = targets.Mode.ToString();
@@ -108,14 +119,7 @@ namespace CollegeEducatedAutoEngineer
             if (Convert.ToSingle(FMeasuredAccel.GetValue(loop)) > MaxAccelMps2) return Reject("gaining");         // still gaining speed: brake
 
             // Anything ahead that needs the train to slow (a lower limit or a stop) keeps the controller in charge.
-            foreach (var t in targets.AllTargets)
-            {
-                if (t.Distance <= 0f) continue;
-                float tv = Mathf.Abs(t.SpeedMph) / MpsToMph;
-                if (tv >= speed - 0.9f) continue;
-                float window = tv < 0.5f ? Mathf.Max(1500f, speed * 80f) : Mathf.Max(600f, speed * 40f);
-                if (t.Distance < window) return Reject(tv < 0.5f ? "stopAhead" : "limitAhead");
-            }
+            if (SlowingNeededAhead(targets, speed, out string why)) return Reject(why);
 
             command = new RolloutCommand(RolloutActionKind.Hold, 0f, command.IndependentBrake01, applied, false, false, command.Cost, command.HoldCost);
             FuelSummary.CountSuppressed(ae);

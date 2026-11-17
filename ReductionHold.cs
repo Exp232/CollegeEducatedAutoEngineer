@@ -24,14 +24,14 @@ namespace CollegeEducatedAutoEngineer
             if (!Main.Settings.AvoidPowerIntoReductions || command.ThrottleNotch <= 0.001f) return false;
             var ae = BrakeTaps.FAe?.GetValue(loop) as AutoEngineer;
             if (ae == null || ae.Locomotive == null || StallGuard.IsLatched(ae)) return false;
-            if (BrakeTaps.FContextualField == null || BrakeTaps.FTargetsField == null) return false;
+            if (BrakeTaps.FContextualField == null || !BrakeFix.TargetsReadable) return false;
 
             float speedMph = Mathf.Abs(ae.Locomotive.velocity) * MpsToMph;
             if (speedMph < 5f) return false;
             float ctxMph = Mathf.Abs((float)BrakeTaps.FContextualField.GetValue(ae)) * MpsToMph;
             if (ctxMph <= 0f) return false;
 
-            var targets = BrakeTaps.FTargetsField.GetValue(ae) as AutoEngineer.Targets;
+            var targets = BrakeFix.TargetsOf(ae);
             if (targets != null && targets.AverageGradeUnder <= -SteepUphillPercent) return false;
 
             if (!DecelHold.LowerLimitAhead(ae, ctxMph, out float lowerMph) || speedMph <= lowerMph - 1f) return false;

@@ -9,17 +9,15 @@ namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
     /// Reads of the planner's target list that other features share: distance to a stop, station stop ahead,
-    /// Road mode, and the nearest lower speed limit. (The old throttle and brake holds that lived here worked on
-    /// the PID speed loop 0.6.0 removed; the part worth keeping is ReductionHold.)
+    /// Road mode, and the nearest lower speed limit; and the "Stay stopped at stop targets" patch below.
     /// </summary>
     internal static class DecelHold
     {
-        private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
 
         /// <summary>Metres to the nearest stop (0 mph) target still ahead, or a large number.</summary>
         internal static float DistanceToStopTarget(AutoEngineer ae)
         {
-            var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
+            var targets = BrakeFix.TargetsOf(ae);
             var list = targets?.AllTargets as IList<AutoEngineer.Targets.Target>;
             float best = 1e9f;
             if (list == null) return best;
@@ -34,7 +32,7 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>True when a station stop is listed within this many metres ahead (or being served at the platform).</summary>
         internal static bool StationStopWithin(AutoEngineer ae, float meters)
         {
-            var targets = ae != null ? FTargets?.GetValue(ae) as AutoEngineer.Targets : null;
+            var targets = BrakeFix.TargetsOf(ae);
             var list = targets?.AllTargets as IList<AutoEngineer.Targets.Target>;
             if (list == null) return false;
             for (int i = 0; i < list.Count; i++)
@@ -48,7 +46,7 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>True in Road mode (signals, track speed). Waypoint and Yard keep the game's own stopping accuracy.</summary>
         internal static bool IsRoad(AutoEngineer ae)
         {
-            var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
+            var targets = BrakeFix.TargetsOf(ae);
             return targets != null && targets.Mode.ToString() == "Road";
         }
 
@@ -60,7 +58,7 @@ namespace CollegeEducatedAutoEngineer
         internal static bool LowerLimitAhead(AutoEngineer ae, float ctxMph, out float limitMph)
         {
             limitMph = 0f;
-            var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
+            var targets = BrakeFix.TargetsOf(ae);
             var list = targets?.AllTargets as IList<AutoEngineer.Targets.Target>;
             if (list == null) return false;
             float bestDistance = 1e9f;

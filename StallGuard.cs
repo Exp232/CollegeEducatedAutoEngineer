@@ -16,10 +16,12 @@ namespace CollegeEducatedAutoEngineer
     /// rolls back, the planner loses its targets, the AI brakes lightly, sees targets again, opens the
     /// throttle, and so on, until someone stops it. Neither the game nor the planner has a stall check.
     ///
-    /// This one declares a stall when the throttle has been fully open for a while on an uphill grade without
-    /// the train gaining speed, and it is under 4 mph. From then on the throttle stays shut, the brakes stay
-    /// applied, the start-up routine is skipped and the engineer says so. It lasts until the engineer is
-    /// switched off and on again.
+    /// This one declares a stall in three cases: the throttle has been fully open on an uphill grade without the
+    /// train gaining speed (under 4 mph); the throttle is at half or more with the brakes off and the train cannot
+    /// get moving; or, in Waypoint and Road modes, the train rolls back against its order. From then on the throttle
+    /// stays shut, the brakes stay applied, the start-up routine is skipped and the engineer says so; in Waypoint and
+    /// Road modes the speed order is also set to 0. It lasts until a new speed, direction, mode or waypoint is given,
+    /// or the engineer is switched off and on again. A locomotive driven by hand is left alone.
     /// </summary>
     internal static class StallGuard
     {
@@ -60,7 +62,6 @@ namespace CollegeEducatedAutoEngineer
         private const float ArmMph = 1f;
 
         private static readonly ConditionalWeakTable<AutoEngineer, State> States = new ConditionalWeakTable<AutoEngineer, State>();
-        private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
         private static readonly MethodInfo MSay = AccessTools.Method(SignalPlanning.PlannerType, "Say", new[] { typeof(string) });
         private static readonly MethodInfo MNotice = AccessTools.Method(typeof(BaseLocomotive), "PostNotice", new[] { typeof(string), typeof(string) });
 
@@ -124,8 +125,6 @@ namespace CollegeEducatedAutoEngineer
             if (States.TryGetValue(ae, out State s2)) { s2.Latched = false; s2.Timer = 0f; s2.Settled = false; s2.StandTimer = 0f; s2.StillSince = -1f; s2.Armed = false; s2.WpHold = false; }
         }
 
-
-
         /// <summary>The engineer's mode and direction of travel (the sign of the speed limit, which the planner signs by direction).</summary>
         private static void ReadOrders(AutoEngineer ae, out string mode, out int sign)
         {
@@ -137,7 +136,7 @@ namespace CollegeEducatedAutoEngineer
                 sign = o.Forward ? 1 : -1;
                 return;
             }
-            var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
+            var targets = BrakeFix.TargetsOf(ae);
             mode = targets != null ? targets.Mode.ToString() : "";
             float m = targets != null ? targets.MaxSpeedMph : 0f;
             sign = m > 0.5f ? 1 : (m < -0.5f ? -1 : 0);
@@ -238,7 +237,7 @@ namespace CollegeEducatedAutoEngineer
             // A train that has just slipped on its start and now slides back is declared sooner: the slip guard has shut the throttle on it.
             float rollback = SlipGuard.SlippedRecently(ae, 6f) ? SlipRollbackMph : RollbackMph;
             if (along > -rollback) return false;
-            var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
+            var targets = BrakeFix.TargetsOf(ae);
             float grade = targets != null ? targets.AverageGradeUnder : 0f;
             Latch(ae, st, $"Stall guard: rolling back at {-along:0.0} mph against the order{(Mathf.Abs(grade) > 0.01f ? $" on a {-grade:0.0}% grade" : "")}.",
                 "We can't climb this grade - the train is rolling back. Holding with the brakes; we need help or a lighter train.", "Can't climb grade");
@@ -247,12 +246,20 @@ namespace CollegeEducatedAutoEngineer
 
         /// <summary>
         /// Called every frame while the engineer is on. Catches a train that cannot get moving at all: throttle at
-        /// half or more, brakes off, still under 0.5 mph, on any grade, for the stall time. Runs outside the throttle
-        /// PID because the PID does not run while the engineer is in its start-up state.
+        /// half or more, brakes off, still under 0.5 mph, on any grade, for the stall time. Runs outside the rollout
+        /// controller's commands because the controller does not run while the engineer is in its start-up state.
         /// </summary>
         internal static void Tick(AutoEngineer ae)
         {
             if (!Main.Settings.StallGuard || ae == null || ae.Locomotive == null) return;
+            // The game keeps the auto engineer enabled while the locomotive is driven by hand (Run is false then): a player holding the
+            // throttle open on a train that will not move must not have the stall guard shut it and apply the brakes. Taking over
+            // by hand also ends a hold.
+            if (!ae.Run)
+            {
+                if (IsLatched(ae)) Reset(ae);
+                return;
+            }
             State st = States.GetOrCreateValue(ae);
             if (st.Latched)
             {
@@ -295,12 +302,11 @@ namespace CollegeEducatedAutoEngineer
 
             if (st.StandTimer < Mathf.Max(3f, Main.Settings.StallSeconds)) return;
 
-            var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
+            var targets = BrakeFix.TargetsOf(ae);
             float grade = targets != null ? targets.AverageGradeUnder : 0f;
             Latch(ae, st, $"Stall guard: could not get moving ({speed:0.00} mph with the throttle at {BrakeFix.ReadThrottle(ae):0.00}, grade {-grade:0.00}% up). Holding with the brakes.",
                 "We can't get this train moving. Holding with the brakes - we need help or a lighter train.", "Can't start the train");
         }
-
 
         /// <summary>
         /// Rollout-controller hook (0.6): runs on every command before the other filters. Uses the command's throttle
@@ -321,7 +327,7 @@ namespace CollegeEducatedAutoEngineer
         }
 
         /// <summary>
-        /// Called from the throttle PID postfix with its output. Returns true when the stall guard has taken
+        /// Called from Filter with the throttle the controller is asking for. Returns true when the stall guard has taken
         /// over (the throttle is forced shut).
         /// </summary>
         internal static bool Check(AutoEngineer ae, ref float throttle)
@@ -342,7 +348,7 @@ namespace CollegeEducatedAutoEngineer
             float dt = st.LastTime > 0f ? Mathf.Clamp(now - st.LastTime, 0f, 1.5f) : 0f;
             st.LastTime = now;
 
-            var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
+            var targets = BrakeFix.TargetsOf(ae);
             float grade = targets != null ? targets.AverageGradeUnder : 0f; // percent, negative = uphill in the direction of travel
             bool stalling = throttle >= 0.95f && speed < MaxSpeedMph && grade <= -MinUphillPercent && st.Trend <= 0.05f;
             st.Timer = stalling ? st.Timer + dt : Mathf.Max(0f, st.Timer - 2f * dt);

@@ -10,7 +10,7 @@ using UnityEngine;
 namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
-    /// Samples one AutoEngineer's controls and PID state into the CSV log.
+    /// Samples one AutoEngineer's controls, the rollout controller's commands and this mod's state into the CSV log.
     /// Runs in FixedUpdate so timestamps line up with the game's own Time.fixedTime-based control loop.
     /// </summary>
     public class AutoEngineerSampler : MonoBehaviour
@@ -20,7 +20,6 @@ namespace CollegeEducatedAutoEngineer
         // Private members of AutoEngineer, cached once.
         private static readonly FieldInfo FControl = AccessTools.Field(typeof(AutoEngineer), "_control");
         private static readonly FieldInfo FRouteProfile = AccessTools.Field(typeof(AutoEngineer), "_routeProfile");
-        private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
         private static readonly FieldInfo FContextualTarget = AccessTools.Field(typeof(AutoEngineer), "_debugContextualTargetVelocity");
         private static readonly MethodInfo MShouldUseLocoBrake = AccessTools.Method(typeof(AutoEngineer), "ShouldUseLocomotiveBrake");
         private static readonly MethodInfo MLookahead = AccessTools.Method(typeof(AutoEngineer), "CalculateLookaheadDistance", Type.EmptyTypes);
@@ -175,7 +174,7 @@ namespace CollegeEducatedAutoEngineer
         {
             try
             {
-                var targets = FTargets?.GetValue(_ae) as AutoEngineer.Targets;
+                var targets = BrakeFix.TargetsOf(_ae);
                 float mph = _ae.Locomotive != null ? _ae.Locomotive.velocity * MpsToMph : 0f;
                 SignalLog.Observe(_ae, targets, mph);
             }
@@ -229,7 +228,7 @@ namespace CollegeEducatedAutoEngineer
             if (Mathf.Abs(loco.velocity) < 0.01f) return; // don't fill the log while standing still
 
             object control = FControl?.GetValue(_ae);
-            var targets = FTargets?.GetValue(_ae) as AutoEngineer.Targets;
+            var targets = BrakeFix.TargetsOf(_ae);
 
             float nextMph = float.NaN, nextDist = float.NaN;
             string nextReason = "";

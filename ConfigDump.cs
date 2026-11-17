@@ -11,7 +11,7 @@ using UnityEngine;
 namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
-    /// Writes the live AutoEngineerConfig (including its PID settings and curves) to a text file once per
+    /// Writes the live AutoEngineerConfig (including its curves) to a text file once per
     /// game session. The values in the decompiled source are only defaults; the asset can override them.
     /// </summary>
     internal static class ConfigDump

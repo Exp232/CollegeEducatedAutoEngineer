@@ -483,11 +483,6 @@ namespace CollegeEducatedAutoEngineer
             return car != null && (car.IsLocomotive || TypeOf(car).StartsWith("LT", StringComparison.Ordinal));
         }
 
-        private static bool IsBaggage(Car car)
-        {
-            return TypeOf(car).StartsWith("CB", StringComparison.Ordinal);
-        }
-
         private static bool IsOpen(Car car, string key)
         {
             try { return car.KeyValueObject[key].BoolValue; }

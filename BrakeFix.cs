@@ -6,19 +6,11 @@ using Model.AI;
 
 namespace CollegeEducatedAutoEngineer
 {
-    internal enum PidKind
-    {
-        Independent,
-        TrainBrake,
-        Throttle
-    }
-
-    internal sealed class PidInfo
+    internal sealed class ThrottleState
     {
         public AutoEngineer Engineer;
-        public PidKind Kind;
 
-        // Throttle smoothing state (only used for PidKind.Throttle).
+        // Throttle smoothing state.
         public bool HasLast;
         public float Last;
         public float LastTime;
@@ -53,7 +45,7 @@ namespace CollegeEducatedAutoEngineer
         private const int SnapsToLock = 4;
 
         /// <summary>True when smoothing is off for this engineer. Pass the value the mod wrote and the lever reading seen afterwards.</summary>
-        internal static bool Observe(PidInfo info, float written, float read)
+        internal static bool Observe(ThrottleState info, float written, float read)
         {
             if (info == null || !Main.Settings.DieselNotchGuard) return false;
             if (info.NotchLocked) return true;
@@ -81,9 +73,8 @@ namespace CollegeEducatedAutoEngineer
     }
 
     /// <summary>
-    /// Access to the engineer's control state (throttle, brakes) by reflection, shared by the stall guard, the
-    /// throttle smoother and the glider. The old brake-drag fix that lived here worked on the PID speed loop that
-    /// 0.6.0 removed, and is gone.
+    /// Access to the engineer's control state (throttle, brakes) and target list by reflection, shared by the command filters,
+    /// the per-frame guards, the throttle smoother and the glider.
     /// </summary>
     internal static class BrakeFix
     {
@@ -91,6 +82,16 @@ namespace CollegeEducatedAutoEngineer
         private const BindingFlags Members = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
         private static readonly FieldInfo FControl = AccessTools.Field(typeof(AutoEngineer), "_control");
+        private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
+
+        /// <summary>True when the engineer's private target list can be read.</summary>
+        internal static bool TargetsReadable => FTargets != null;
+
+        /// <summary>The planner's targets as the engineer has them now (AutoEngineer._targets), or null.</summary>
+        internal static AutoEngineer.Targets TargetsOf(AutoEngineer ae)
+        {
+            return ae != null ? FTargets?.GetValue(ae) as AutoEngineer.Targets : null;
+        }
 
         // The control helper's Throttle/TrainBrake/LocomotiveBrake may be properties or fields; resolve once per name.
         private sealed class Accessor
@@ -108,7 +109,7 @@ namespace CollegeEducatedAutoEngineer
             DirectionPause.Reset(ae);
         }
 
-        internal static PidInfo ThrottleInfo(AutoEngineer ae)
+        internal static ThrottleState ThrottleInfo(AutoEngineer ae)
         {
             return RolloutThrottle.Peek(ae);   // the rollout controller's smoothing state
         }

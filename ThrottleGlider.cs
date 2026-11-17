@@ -65,7 +65,7 @@ namespace CollegeEducatedAutoEngineer
 
         private void Step()
         {
-            PidInfo info = BrakeFix.ThrottleInfo(_ae);
+            ThrottleState info = BrakeFix.ThrottleInfo(_ae);
             if (info == null || !info.HasLast) return;
 
             if (Time.time - info.LastTime > StaleSeconds)

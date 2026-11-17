@@ -46,7 +46,7 @@ namespace CollegeEducatedAutoEngineer
 
             var ae = BrakeTaps.FAe?.GetValue(loop) as AutoEngineer;
             if (ae == null || ae.Locomotive == null) return false;
-            var targets = BrakeTaps.FTargetsField?.GetValue(ae) as AutoEngineer.Targets;
+            var targets = BrakeFix.TargetsOf(ae);
             if (targets == null || targets.AllTargets == null) return false;
             string mode = targets.Mode.ToString();
             if (mode != "Road" && mode != "Waypoint") return false;

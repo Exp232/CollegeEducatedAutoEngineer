@@ -21,7 +21,6 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>Below this speed the direction-change limit lifts, so the train can still be held.</summary>
         internal const float FullBrakeBelowMph = 2f;
 
-        private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
         internal static readonly Type TrainBrakeType = AccessTools.Inner(typeof(AutoEngineer), "TrainBrake");
         private static readonly FieldInfo FTrainBrakeAe = TrainBrakeType != null ? AccessTools.Field(TrainBrakeType, "_ae") : null;
 
@@ -93,7 +92,7 @@ namespace CollegeEducatedAutoEngineer
         /// </summary>
         internal static bool StopWithoutTarget(AutoEngineer ae)
         {
-            var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
+            var targets = BrakeFix.TargetsOf(ae);
             if (targets == null || ae.Locomotive == null) return false;
             float speedMps = Mathf.Abs(ae.Locomotive.velocity);
             var list = targets.AllTargets as IList<AutoEngineer.Targets.Target>;

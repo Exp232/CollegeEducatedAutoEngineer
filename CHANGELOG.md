@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.7.0
+
+Code and documentation clean-up (no change to the defaults).
+
+- **Fix: the stall guard could take over a locomotive driven by hand.** The game keeps a locomotive's auto engineer enabled while it is off duty, so the stall guard's per-frame check also ran under manual control: holding the throttle at half or more on a train that would not move (for the stall time) latched it, which shut the throttle and applied the brakes on the player's train. It now only acts while the engineer is on duty, and taking over by hand ends a hold.
+- **Settings window:** the slip guard, slip guard in manual driving, sanding and car wheel lock options have their own section ("Wheel slip, sand and car brakes"), with notes that say what they do now; "Diesels start in notch 1" moved to the Throttle section; "Sand when slipping" is now "Sanding".
+- **Logs:** the car lock guard's one-time Player.log line now gives the figure that set the cap (how far past its lock line a full application would take the worst car) instead of the current ratio, which read 0.00.
+- **Code:** one shared reader for the planner's target list (it was looked up separately in ten classes); the throttle smoothing state is `ThrottleState` (it was `PidInfo`, named after the PID speed loop 0.6.0 removed); duplicate look-ahead check in the brake tap limit merged; unused members removed (`WagonLock.Isolated`, `WagonLock.LastRatio`, a start time in the notch-1 start, `TrainLights.IsBaggage`); comments and class summaries brought up to date (no more references to the PID loop or the removed brake fix).
+- **README** rewritten to describe the mod as it is: the old "Brake fix" section and the brake bleed-down release (both removed with the PID loop) are gone, the wheel slip, sand and car brake features have their own section, and the settings window and `Settings.xml`-only lists are current. CLAUDE.md describes the full command filter order, the manual-driving rule and the shared helpers.
+
 ## 1.6.7
 
 - **The waypoint stop hold only covers the slack case, 1 to 1.5 m from the stop.** A user on 1.6.4 reported trains stopping and holding about a foot from the waypoint, holding up a passenger train. From 1.6.2 the hold made a standing train's target speed 0 anywhere within 1.5 m of a stop target (including one up to 5 m behind it), which also overrode the game inside 1 m. It now acts only between 1 m and 1.5 m, after the train has arrived (1.6.6): inside 1 m the game's own rules apply exactly as stock, and a new short waypoint is driven to as normal.

@@ -11,13 +11,13 @@ using UnityEngine;
 namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
-    /// Car wheel lock under Wheelslip Prototype. Its wagon brake law locks a car's wheels when the braking force (cylinder fraction times 0.7 of the
-    /// empty weight times the game's brake-force curve, which rises as the train slows) is more than 1.02 times weight times the rail's friction
-    /// coefficient, and the car then brakes at half of what the rail holds until the force falls under 0.8 of it. A train run down to a stop with a
-    /// fixed application crosses that line on the way. The brake force of one car at 100 % is the game's formula (read here directly, not through the
-    /// patched Car.CalculateBrakingForce), so the line is
-    /// known per car: this filter keeps the train brake from being applied further once a car's cylinders are near it, and eases the brake off
-    /// when a car is past it. Does nothing without Wheelslip Prototype, with its wagon brakes off, or with the setting off.
+    /// Car wheel lock under Wheelslip Prototype. Its wagon brake law locks a car's wheels when the game's braking force for the car (times
+    /// Wheelslip's wagon brake factor) is more than its lock threshold (1.02) times the car's weight times the rail's friction coefficient, and the
+    /// car then brakes at half of what the rail holds until the force falls under 0.8 of it. The brake-force curve rises as a train slows, so a
+    /// fixed application run down to a stop crosses that line on the way. The force of one car at a full application is the game's own formula
+    /// (read here directly, not through the patched Car.CalculateBrakingForce), so the line is known per car: this filter caps the train brake
+    /// handle where the worst car's cylinders would stay under the line, and eases the brake off when a car is past it. It also keeps Wheelslip's
+    /// lock law to the physics (see EnsureIsolation). Does nothing without Wheelslip Prototype, with its wagon brakes off, or with the setting off.
     /// </summary>
     internal static class WagonLock
     {
@@ -63,7 +63,7 @@ namespace CollegeEducatedAutoEngineer
         }
 
         /// <summary>Car.CalculateBrakingForce(1, speed) as the game computes it, before Wheelslip's postfix. NaN when it cannot be read.</summary>
-        internal static float NativeFullForce(Car car, float absVelocity)
+        private static float NativeFullForce(Car car, float absVelocity)
         {
             if (!InitNative()) return float.NaN;
             object cfg = _cfg.GetValue(car);
@@ -81,7 +81,6 @@ namespace CollegeEducatedAutoEngineer
         // Wheelslip loads after this mod, so the patch is put in on the first auto engineer command.
         private static int _inPhysics;
         private static bool _isolationTried;
-        internal static bool Isolated;
 
         internal static void EnsureIsolation()
         {
@@ -105,7 +104,6 @@ namespace CollegeEducatedAutoEngineer
                 Main.Harmony.Patch(physics, prefix: new HarmonyMethod(typeof(WagonLock), nameof(PhysicsEnter)), finalizer: new HarmonyMethod(typeof(WagonLock), nameof(PhysicsExit)));
                 Main.Harmony.Patch(wagons, prefix: new HarmonyMethod(typeof(WagonLock), nameof(OnlyInPhysics)));
                 if (locos != null) Main.Harmony.Patch(locos, prefix: new HarmonyMethod(typeof(WagonLock), nameof(OnlyInPhysics)));
-                Isolated = true;
                 Main.Mod.Logger.Log("Wagon lock guard: Wheelslip's brake lock law now runs only for the physics, not for the auto engineer's planning.");
             }
             catch (Exception e)
@@ -127,8 +125,7 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>True when the game's brake force members can be read (for the self-check).</summary>
         internal static bool NativeAvailable() { return InitNative(); }
 
-        internal static int LockedCars;                // cars Wheelslip has locked right now
-        internal static float LastRatio = float.NaN;   // for the log: worst car, cylinders as a fraction of its lock line
+        internal static int LockedCars;   // for the log: cars Wheelslip has locked right now (with their brakes on)
 
         private static void Init()
         {
@@ -250,7 +247,6 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>Returns true when the command was changed.</summary>
         internal static bool Filter(object loop, ref RolloutCommand command)
         {
-            LastRatio = float.NaN;
             if (!Main.Settings.WagonLockGuard) return false;
             if (!command.DrivesTrainBrake || BrakeTaps.PApplied == null) return false;
             var ae = BrakeTaps.FAe?.GetValue(loop) as AutoEngineer;
@@ -258,7 +254,6 @@ namespace CollegeEducatedAutoEngineer
 
             float speed = Mathf.Abs(ae.Locomotive.velocity);
             if (!Measure(ae.Locomotive, speed, out float ratio, out float atFull, out float pct)) return false;
-            LastRatio = ratio;
 
             float applied = Convert.ToSingle(BrakeTaps.PApplied.GetValue(BrakeTaps.FTrainBrake.GetValue(loop), null));
             // Learn the cylinders per handle once the cylinders have settled near the applied handle.
@@ -271,7 +266,7 @@ namespace CollegeEducatedAutoEngineer
             if (ratio >= EaseAt && speed > EntryFloorMps && command.TrainBrakeSet >= applied - 0.005f)
             {
                 command = new RolloutCommand(command.Kind, command.ThrottleNotch, command.IndependentBrake01, Mathf.Max(0f, applied - EaseStep), true, command.BailOff, command.Cost, command.HoldCost);
-                Note(ae, ratio, "eases the train brake off");
+                Note(ae, "eases the train brake off (the worst car is at " + ratio.ToString("0.00") + " of its lock line)");
                 return true;
             }
 
@@ -286,18 +281,18 @@ namespace CollegeEducatedAutoEngineer
                     command = newSet > applied + 0.005f
                         ? new RolloutCommand(command.Kind, command.ThrottleNotch, command.IndependentBrake01, newSet, true, command.BailOff, command.Cost, command.HoldCost)
                         : new RolloutCommand(RolloutActionKind.Hold, 0f, command.IndependentBrake01, applied, false, false, command.Cost, command.HoldCost);
-                    Note(ae, ratio, "limits the train brake to a handle of " + maxHandle.ToString("0.00"));
+                    Note(ae, "limits the train brake to a handle of " + maxHandle.ToString("0.00") + " (a full application would take the worst car to " + atFull.ToString("0.0") + " times its lock line)");
                     return true;
                 }
             }
             return false;
         }
 
-        private static void Note(AutoEngineer ae, float ratio, string what)
+        private static void Note(AutoEngineer ae, string what)
         {
             if (_logged) return;
             _logged = true;
-            Main.Mod.Logger.Log("Wagon lock guard: " + ae.Locomotive.DisplayName + " " + what + " so a car's wheels do not lock (worst car at " + ratio.ToString("0.00") + " of its lock line; further ones are not logged)."); 
+            Main.Mod.Logger.Log("Wagon lock guard: " + ae.Locomotive.DisplayName + " " + what + ", so the cars' wheels do not lock (logged once).");
         }
     }
 }

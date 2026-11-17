@@ -26,7 +26,6 @@ namespace CollegeEducatedAutoEngineer
         }
 
         private static readonly ConditionalWeakTable<AutoEngineer, State> States = new ConditionalWeakTable<AutoEngineer, State>();
-        private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
         private static readonly MethodInfo MContextual = AccessTools.Method(typeof(AutoEngineer), "ContextualTargetVelocity", Type.EmptyTypes);
         private static readonly MethodInfo MStarting = AccessTools.Method(typeof(AutoEngineer), "CalculateThrottleForTargetVelocityStarting", new[] { typeof(float), typeof(float), typeof(float) });
 
@@ -47,7 +46,7 @@ namespace CollegeEducatedAutoEngineer
             if (loco.VelocityMphAbs >= 1f) return;
             if (MContextual == null || MStarting == null) return;
 
-            var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
+            var targets = BrakeFix.TargetsOf(ae);
             if (targets == null || targets.AverageGradeUnder > -Mathf.Max(0f, Main.Settings.HillStartMinGradePercent)) return;   // negative = uphill in the direction of travel
             if (Mathf.Abs(BrakeFix.ReadControl(ae, "Reverser")) < 0.5f) return;                  // the reverser is set after the first wait
             if (BrakeFix.ReadControl(ae, "LocomotiveBrake") < 0.9f) return;                       // only while the locomotive brake holds the train

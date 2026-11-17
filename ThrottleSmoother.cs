@@ -3,14 +3,10 @@ using UnityEngine;
 namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
-    /// Smooths the throttle PID's output before the auto-engineer applies it. Logs show the throttle flipping
-    /// 0 -> 0.25 -> 0 -> 0.25 on consecutive 0.5 s ticks while holding speed: the speed error is multiplied by 10
-    /// whenever it is positive, so each time it crosses zero the derivative term spikes, hits the PID's 0.25 step
-    /// limit, and the next tick spikes the other way. A low-pass filter plus a rate limit turns that into a gentle
-    /// average and makes ordinary ramps look like a hand on the regulator.
+    /// Smooths the throttle the rollout controller asks for (RolloutThrottle) before it is applied: a low-pass filter plus a
+    /// rate limit turns the controller's notch steps into a gentle ramp, like a hand on the regulator.
     ///
-    /// Real overspeed (past the same margin the brake fix uses, so the throttle is never held open while the brake
-    /// is allowed to apply) bypasses the filter so the throttle closes at once.
+    /// Real overspeed (past OverspeedMarginMph) bypasses the filter so the throttle closes at once.
     /// </summary>
     internal static class ThrottleSmoother
     {
@@ -22,7 +18,7 @@ namespace CollegeEducatedAutoEngineer
         private const float RiseLimitPerSecond = 0.2f;   // 0 -> full in 5 s
         private const float FallLimitPerSecond = 0.4f;   // full -> 0 in 2.5 s
 
-        internal static void Apply(PidInfo owner, float error, ref float result, bool slam = true)
+        internal static void Apply(ThrottleState owner, float error, ref float result, bool slam = true)
         {
             float tau = Main.Settings.ThrottleSmoothingSeconds;
             float now = Time.time;
@@ -39,7 +35,7 @@ namespace CollegeEducatedAutoEngineer
 
             // First call, a pause, or a long gap (for example the AI's start-up routine, which holds the throttle at
             // 50% before handing over): start from where the lever actually is so the handover is continuous,
-            // then filter toward the PID's value like any other tick.
+            // then filter toward the controller's value like any other tick.
             if (!owner.HasLast || dt <= 0f || dt > MaxGapSeconds)
             {
                 owner.HasLast = true;
@@ -67,7 +63,7 @@ namespace CollegeEducatedAutoEngineer
             // Falling is a little quicker than rising.
             float timeConstant = result > owner.Last ? tau : tau * 0.5f;
             float alpha = 1f - Mathf.Exp(-dt / Mathf.Max(0.05f, timeConstant));
-            // Aim a little past the PID's value so the filter actually arrives (an exponential never quite reaches
+            // Aim a little past the controller's value so the filter actually arrives (an exponential never quite reaches
             // its target, which showed up as a long crawl from 97% to 100%), then snap when close.
             float aim = Mathf.Clamp01(result + Mathf.Sign(result - owner.Last) * ArrivalOvershoot);
             float y = owner.Last + alpha * (aim - owner.Last);

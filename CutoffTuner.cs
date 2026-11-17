@@ -27,7 +27,6 @@ namespace CollegeEducatedAutoEngineer
 
         private const float GradeBlendBandPercent = 0.5f; // eases back to stock over this much grade below the limit
 
-        private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
         private static readonly ConditionalWeakTable<SteamLocomotive, AutoEngineer> Engineers =
             new ConditionalWeakTable<SteamLocomotive, AutoEngineer>();
 
@@ -53,7 +52,7 @@ namespace CollegeEducatedAutoEngineer
                 Engineers.Add(loco, ae);
             }
 
-            var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
+            var targets = BrakeFix.TargetsOf(ae);
             if (targets == null) return 0f;
             // The logs show uphill as a negative grade.
             float under = -targets.AverageGradeUnder;

@@ -7,18 +7,14 @@ namespace CollegeEducatedAutoEngineer
     /// <summary>Kept in Settings.xml in the mod folder, in the same XML layout UMM used, so old files still load.</summary>
     public class Settings
     {
-        /// <summary>Settings.xml layout version. Older files had features switched off by the start-up self-check (their PID targets were missing on 0.6); those are reset once.</summary>
+        /// <summary>Settings.xml layout version. A file older than CurrentSettingsVersion gets the settings listed in Load reset to their defaults once.</summary>
         public int SettingsVersion = 0;
 
         internal const int CurrentSettingsVersion = 8;
 
         // ---- Overspeed ----
 
-        /// <summary>
-        /// How far (mph) above the auto-engineer's own padded setpoint the train may be before the brake is
-        /// allowed to apply or stay applied while the throttle is open. The setpoint already sits about 1 mph
-        /// under the track limit at 20 mph and above, so 0.5 mph here is still at or below the limit.
-        /// </summary>
+        /// <summary>How far (mph) over its target the train may be before the throttle smoothing is skipped and the throttle closes at once. Settings.xml only.</summary>
         public float OverspeedMarginMph = 0.5f;
 
         // ---- Cutoff (experimental) ----
@@ -55,7 +51,10 @@ namespace CollegeEducatedAutoEngineer
         /// </summary>
         public bool DieselNotchGuard = true;
 
-        /// <summary>Stand still once within a couple of metres of a stop target instead of creeping past it.</summary>
+        /// <summary>
+        /// Stay stopped at stop targets. Road mode: a train within 2.5 m of a stop target holds the stop instead of creeping on. Waypoint and Yard
+        /// mode (the game's 1 m accuracy is kept): a train that has arrived stays stopped while coupler slack eases it back up to 1.5 m.
+        /// </summary>
         public bool HoldStopAtStopTargets = true;
 
         /// <summary>No power while a lower speed limit is in sight and the train is at or above that speed.</summary>
@@ -67,7 +66,7 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>With Waypoint Queue loaded: leave the waypoint's speed target where it is (its passing speed is matched by distance), and skip train preparation (handbrakes, air, anglecocks) for waypoint orders, which it handles itself. Settings.xml only.</summary>
         public bool WaypointQueueCompat = true;
 
-        /// <summary>Detect a stall on a grade (full throttle, almost stopped, climbing): brake, stay put and announce it.</summary>
+        /// <summary>Detect a stall (full throttle on a climb without gaining speed, a train that cannot get moving, or a rollback against the order): brake, stay put and announce it. Engineer only, not manual driving.</summary>
         public bool StallGuard = true;
 
         /// <summary>Seconds of full throttle without making progress on a grade before the stall is declared.</summary>
@@ -233,8 +232,8 @@ namespace CollegeEducatedAutoEngineer
         public float HillStartMinGradePercent = 0.5f;
 
         /// <summary>
-        /// While a driver wheelset slips (the game's own slip state), close the throttle, then let it open again to a level just under the one
-        /// that slipped and lift that limit after a slip-free spell. Works with or without Wheelslip Prototype.
+        /// Hold the throttle to SlipMargin of what the driver wheels carry (their weight on the drivers times the rail's grip, with Wheelslip
+        /// Prototype's weather, sand and rail wear when it is installed); if they slip anyway, close it until they grip and settle a little lower.
         /// </summary>
         public bool SlipGuard = true;
 
@@ -251,8 +250,9 @@ namespace CollegeEducatedAutoEngineer
         public float SlipGuardMaxMph = 30f;
 
         /// <summary>
-        /// Sand while the driver wheels slip, using Wheelslip Prototype's sand request (it must be installed, with its "Include AutoEngineer"
-        /// option on, and the locomotive needs sand). GP9 and SD7 have their own automatic sanding and are left to it.
+        /// Sand, using Wheelslip Prototype's sand request (it must be installed, with its "Include AutoEngineer" option on, and the locomotive needs
+        /// sand): after a slip, when the train's tonnage on the grade needs more than the dry rail carries, and on a wet rail when the engineer asks
+        /// for more than it carries; never with the throttle shut. GP9 and SD7 have their own automatic sanding and are left to it.
         /// </summary>
         public bool SlipSand = true;
 
@@ -263,8 +263,8 @@ namespace CollegeEducatedAutoEngineer
         public bool WagonLockGuard = true;
 
         /// <summary>
-        /// Diesels start in notch 1 instead of the notch the game asks for (often 2 or 3), with one more notch every 2 s while the train still
-        /// stands. Not on an upgrade at or above the hill-start grade while the hill-start spool-up is on.
+        /// Diesels start in notch 1 instead of the notch the game asks for (often 2 to 5), with one more notch every 2 s while the train is not
+        /// getting going. Not on an upgrade at or above the hill-start grade while the hill-start spool-up is on.
         /// </summary>
         public bool DieselStartNotchOne = true;
 
@@ -272,7 +272,7 @@ namespace CollegeEducatedAutoEngineer
         public float SlipSandMaxMph = 25f;
 
         /// <summary>
-        /// Fuel saving, off at 0; 2 since 2.4.3 (0 before). When the train is no more than this many mph over its target, is not gaining speed and
+        /// Brake tap limit in mph, off at 0. When the train is no more than this many mph over its target, is not gaining speed and
         /// nothing ahead needs it to slow, the controller's first train-brake application is turned into a coast. Road mode
         /// and Waypoint modes. About 1-2% less coal on downhill running, nothing measurable uphill.
         /// </summary>

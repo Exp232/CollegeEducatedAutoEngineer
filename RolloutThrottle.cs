@@ -7,9 +7,8 @@ using UnityEngine;
 namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
-    /// Throttle smoothing on the 0.6 rollout controller (it was on the old PID speed loop until 2.0, which 0.6.0
-    /// replaced). The controller sets the lever to a notch once per tick (SpeedControlLoop.ApplyRolloutCommand);
-    /// this runs the same low-pass filter and rate limit as before (ThrottleSmoother) on that notch, so the lever
+    /// Throttle smoothing on the 0.6 rollout controller. The controller sets the lever to a notch once per tick
+    /// (SpeedControlLoop.ApplyRolloutCommand); this runs a low-pass filter and rate limit (ThrottleSmoother) on that notch, so the lever
     /// moves like a hand on the regulator instead of stepping, and the glider (ThrottleGlider) then eases the
     /// lever between ticks. A command that brakes, or any overspeed, closes the throttle at once.
     /// </summary>
@@ -17,17 +16,17 @@ namespace CollegeEducatedAutoEngineer
     {
         private const float MpsToMph = 2.23694f;
 
-        private static readonly ConditionalWeakTable<AutoEngineer, PidInfo> States = new ConditionalWeakTable<AutoEngineer, PidInfo>();
+        private static readonly ConditionalWeakTable<AutoEngineer, ThrottleState> States = new ConditionalWeakTable<AutoEngineer, ThrottleState>();
 
         /// <summary>This engineer's smoothing state, or null when it has had no command yet.</summary>
-        internal static PidInfo Peek(AutoEngineer ae)
+        internal static ThrottleState Peek(AutoEngineer ae)
         {
-            return ae != null && States.TryGetValue(ae, out PidInfo info) ? info : null;
+            return ae != null && States.TryGetValue(ae, out ThrottleState info) ? info : null;
         }
 
-        private static PidInfo For(AutoEngineer ae)
+        private static ThrottleState For(AutoEngineer ae)
         {
-            return States.GetValue(ae, a => new PidInfo { Engineer = a, Kind = PidKind.Throttle });
+            return States.GetValue(ae, a => new ThrottleState { Engineer = a });
         }
 
         /// <summary>True when the target is under CrawlSmoothingMaxMph, or a coupling approach is within 60 m.</summary>
@@ -36,7 +35,7 @@ namespace CollegeEducatedAutoEngineer
             float maxMph = Main.Settings.CrawlSmoothingMaxMph;
             if (maxMph <= 0f) return false;
             if (targetMps * MpsToMph < maxMph) return true;
-            var targets = BrakeTaps.FTargetsField?.GetValue(ae) as AutoEngineer.Targets;
+            var targets = BrakeFix.TargetsOf(ae);
             var list = targets?.AllTargets as System.Collections.Generic.IList<AutoEngineer.Targets.Target>;
             if (list == null) return false;
             for (int i = 0; i < list.Count; i++)
@@ -55,7 +54,7 @@ namespace CollegeEducatedAutoEngineer
         internal static void CloseFor(AutoEngineer ae)
         {
             if (ae == null) return;
-            PidInfo info = For(ae);
+            ThrottleState info = For(ae);
             info.HasLast = true;
             info.Last = 0f;
             info.LastTime = Time.time;
@@ -71,7 +70,7 @@ namespace CollegeEducatedAutoEngineer
             if (ae == null || ae.Locomotive == null) return false;
             if (StallGuard.IsLatched(ae)) return false;
 
-            PidInfo info = For(ae);
+            ThrottleState info = For(ae);
 
             // Another mod may already smooth the diesel notch stepping; two filters in series can leave the lever lagging the controller.
             if (!Main.Settings.SmoothDieselThrottle && ae.Locomotive is Model.DieselLocomotive)

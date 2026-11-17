@@ -5,8 +5,8 @@ using Model.AI;
 namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
-    /// Runs as each AutoEngineer is enabled: attaches the logger's sampler, registers the engineer's brake PIDs
-    /// with the brake fix, and dumps the live config once.
+    /// Runs as each AutoEngineer is enabled: attaches the logger's sampler, the throttle glider (which also runs the per-frame
+    /// guards) and the water stop, resets the stall guard and the direction-change pause, and dumps the live config once.
     /// </summary>
     [HarmonyPatch(typeof(AutoEngineer), "OnEnable")]
     internal static class AutoEngineer_OnEnable_Patch

@@ -17,7 +17,7 @@ using UnityEngine;
 namespace CollegeEducatedAutoEngineer
 {
     /// <summary>
-    /// Water stop for a Road-mode engineer (off by default, setting WaterStop).
+    /// Water stop for a Road-mode engineer (setting WaterStop, on by default).
     ///
     /// When the tender's water falls below the threshold, the engineer looks along the route as it is lined (Road mode
     /// does not throw switches) for the nearest water column or tower ahead, says where it will take water, and

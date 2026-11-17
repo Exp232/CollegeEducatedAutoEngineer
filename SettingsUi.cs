@@ -68,6 +68,20 @@ namespace CollegeEducatedAutoEngineer
                     Note(b, "Switch off if another mod already smooths the diesel notch stepping (for example a diesel realism mod); two smoothers together can stop the engineer notching up.");
                     b.AddFieldToggle("Diesel notch guard", () => s.DieselNotchGuard, v => { s.DieselNotchGuard = v; Save(); });
                     Note(b, "If another mod rounds a diesel's throttle to the nearest notch, smoothing is switched off for that locomotive so it can still notch up.");
+                    b.AddFieldToggle("Diesels start in notch 1", () => s.DieselStartNotchOne, v => { s.DieselStartNotchOne = v; Save(); });
+                    Note(b, "A diesel opens to notch 1 to start and takes one more notch every 2 s only while the train is not getting going. Hill starts (with the spool-up on) keep the game's notch.");
+                });
+
+                page.AddSection("Wheel slip, sand and car brakes", b =>
+                {
+                    b.AddFieldToggle("Slip guard", () => s.SlipGuard, v => { s.SlipGuard = v; Save(); });
+                    Note(b, "Holds the throttle just under what the driver wheels can carry. If they slip anyway, the throttle comes down until they grip and then settles a little lower. Uses Wheelslip Prototype's weather, sand and rail wear when it is installed.");
+                    b.AddFieldToggle("Slip guard in manual driving", () => s.SlipGuardManual, v => { s.SlipGuardManual = v; Save(); });
+                    Note(b, "The slip guard and its sanding also work while you drive by hand. Switch off to have manual driving left entirely to you (to slip the wheels on purpose); the engineer keeps them.");
+                    b.AddFieldToggle("Sanding", () => s.SlipSand, v => { s.SlipSand = v; Save(); });
+                    Note(b, "Needs Wheelslip Prototype with its \"Include AutoEngineer\" option on. The engineer sands after a slip, when the train's tonnage on the grade needs it, and on a wet rail; never with the throttle shut.");
+                    b.AddFieldToggle("Avoid car wheel lock", () => s.WagonLockGuard, v => { s.WagonLockGuard = v; Save(); });
+                    Note(b, "Needs Wheelslip Prototype with wagon brakes on. The train brake is kept under the point where a car's wheels would lock, and eased off if one is past it.");
                 });
 
                 page.AddSection("Braking and speed limits", b =>
@@ -91,16 +105,6 @@ namespace CollegeEducatedAutoEngineer
                     b.AddFieldToggle("Blast before reversing", () => s.DirectionChangeHorn, v => { s.DirectionChangeHorn = v; Save(); });
                     b.AddFieldToggle("Hill start spool-up", () => s.HillStartSpoolUp, v => { s.HillStartSpoolUp = v; Save(); });
                     Note(b, "Starting on an upgrade, the throttle is raised while the brakes release, so the locomotive pulls the moment the locomotive brake lets go instead of rolling back while it spools up.");
-                    b.AddFieldToggle("Slip guard", () => s.SlipGuard, v => { s.SlipGuard = v; Save(); });
-                    Note(b, "While the driver wheels slip the throttle is closed, then opened again to a level just under the one that slipped.");
-                    b.AddFieldToggle("Slip guard in manual driving", () => s.SlipGuardManual, v => { s.SlipGuardManual = v; Save(); });
-                    Note(b, "The slip guard and its sanding also work while you drive by hand. Switch off to have manual driving left entirely to you (to slip the wheels on purpose); the engineer keeps them.");
-                    b.AddFieldToggle("Sand when slipping", () => s.SlipSand, v => { s.SlipSand = v; Save(); });
-                    Note(b, "Needs Wheelslip Prototype with its \"Include AutoEngineer\" option on. The engineer sands while the wheels slip at low speed, if the locomotive has sand.");
-                    b.AddFieldToggle("Diesels start in notch 1", () => s.DieselStartNotchOne, v => { s.DieselStartNotchOne = v; Save(); });
-                    Note(b, "A diesel opens to notch 1 to start and takes one more notch every 2 s while the train still stands. Hill starts (with the spool-up on) keep the game's notch.");
-                    b.AddFieldToggle("Avoid car wheel lock", () => s.WagonLockGuard, v => { s.WagonLockGuard = v; Save(); });
-                    Note(b, "Needs Wheelslip Prototype with wagon brakes on. The train brake is not applied further while a car is near the point where its wheels would lock, and is eased off if one is past it.");
                     Slider(b, "Locomotive brake use", () => s.PlanIndependentUseScale, v => s.PlanIndependentUseScale = v, 0f, 5f, 0.25f, Weight);
                     Note(b, "How much the planner dislikes using the locomotive brake. Higher = it slows with the train brake instead; 1 = the game's value.");
                 });
@@ -117,7 +121,7 @@ namespace CollegeEducatedAutoEngineer
                 page.AddSection("Stall guard", b =>
                 {
                     b.AddFieldToggle("Stall guard", () => s.StallGuard, v => { s.StallGuard = v; Save(); });
-                    Note(b, "A train that cannot climb a grade, get moving or keeps rolling back is held with the brakes and the engineer says so. In Waypoint and Road modes it also sets the speed to 0 mph; set a speed again to retry.");
+                    Note(b, "A train that cannot climb a grade, get moving or keeps rolling back is held with the brakes and the engineer says so. In Waypoint and Road modes it also sets the speed to 0 mph; set a speed again to retry. Never acts while you drive by hand.");
                 });
 
                 page.AddSection("Starting resistance", b =>

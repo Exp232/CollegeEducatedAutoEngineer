@@ -33,7 +33,6 @@ namespace CollegeEducatedAutoEngineer
 
         private static readonly ConditionalWeakTable<AutoEngineer, State> States = new ConditionalWeakTable<AutoEngineer, State>();
         private static readonly FieldInfo FLastState = AccessTools.Field(typeof(AutoEngineer), "_lastState");
-        private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
 
         private const float MovingMph = 0.5f;
         private const float StandingMph = 0.1f;
@@ -80,7 +79,7 @@ namespace CollegeEducatedAutoEngineer
         /// <summary>Sign of the speed the engineer is being ordered to run at, 0 when there is none.</summary>
         private static float OrderedSign(AutoEngineer ae)
         {
-            var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
+            var targets = BrakeFix.TargetsOf(ae);
             if (targets == null) return 0f;
             float speed = targets.MaxSpeedMph;
             var list = targets.AllTargets;

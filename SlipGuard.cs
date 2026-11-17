@@ -21,8 +21,9 @@ namespace CollegeEducatedAutoEngineer
     ///
     /// The tractive effort follows the throttle (effort = k * lever, with k measured as the train runs and falling with speed), so the lever may
     /// not go above  margin * limit / k.  That ceiling rises by itself as the train speeds up, needs no slip to learn it, and is lower on a wet
-    /// rail. If the wheels do slip anyway, the throttle comes down to a tenth of what the wheels can carry, which is where the game lets them grip
-    /// again, and then climbs back to the ceiling. The sanding decision uses the same numbers (see SlipSand).
+    /// rail. A slip shows the measured k was too low: the band's k is raised so the ceiling comes down for good. While the wheels slip the throttle
+    /// comes down to where the game lets them grip again (an effort under a tenth of the weight on the drivers), then climbs back to the ceiling.
+    /// The sanding decision uses the same numbers (see SlipSand). A diesel is never held under one notch unless its wheels slip.
     /// </summary>
     internal static class SlipGuard
     {
@@ -56,7 +57,6 @@ namespace CollegeEducatedAutoEngineer
 
         private static readonly ConditionalWeakTable<AutoEngineer, State> States = new ConditionalWeakTable<AutoEngineer, State>();
         private static readonly FieldInfo FStates = AccessTools.Field(typeof(BaseLocomotive), "DriverWheelStates");
-        private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
 
         private const float TickInterval = 0.05f;
         private const float ClearHoldSeconds = 0.8f;    // after the slip stops, stay closed this long
@@ -147,7 +147,7 @@ namespace CollegeEducatedAutoEngineer
                 }
                 if (tons <= 0f) return float.NaN;
                 float grade = 0f;
-                var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
+                var targets = BrakeFix.TargetsOf(ae);
                 if (targets != null && !float.IsNaN(targets.AverageGradeUnder)) grade = Mathf.Max(0f, -targets.AverageGradeUnder);
                 float gradeLbf = 20f * grade * tons;   // 20 lb per ton per percent
                 float start = 0f;
@@ -223,11 +223,11 @@ namespace CollegeEducatedAutoEngineer
                 return;
             }
 
-            // A short slip at speed is let go: the longer the train is moving, the longer the slip must last before the throttle is touched.
             float lever = BrakeFix.ReadThrottle(ae);
             float effort = Mathf.Abs(loco.TractiveEffort);
             st.Effort = effort;
 
+            // A short slip at speed is let go: the faster the train, the longer the slip must last before the throttle is touched.
             bool raw = IsSlipping(loco) || AtSlipCap(loco, effort, lever);
             if (!raw) st.SlipSince = -1f;
             else if (st.SlipSince < 0f) st.SlipSince = now;
@@ -427,10 +427,11 @@ namespace CollegeEducatedAutoEngineer
     }
 
     /// <summary>
-    /// Sanding for the engineer, through Wheelslip Prototype's own sand request (the key the sanding button writes). While a driver wheelset
-    /// slips at low speed and the locomotive has sand, the request is switched on; it is switched off a few seconds after the slip has
-    /// stopped, when the sand runs out or the train is going too fast. Locomotives with Wheelslip's automatic sanding (GP9, SD7) are left to it.
-    /// Wheelslip only applies sand to engineer-driven locomotives when its "Include AutoEngineer" option is on.
+    /// Sanding for the engineer, through Wheelslip Prototype's own sand request (the key the sanding button writes). SlipGuard decides when
+    /// (after a slip, when the train's tonnage needs it, on a wet rail when the engineer asks for more than it carries; never with the throttle
+    /// shut); this switches the request on, holds it a few seconds after the reason has gone, and switches it off when the sand runs out or the
+    /// train is going too fast. A request the player switched on is left alone. Locomotives with Wheelslip's automatic sanding (GP9, SD7) are
+    /// left to it. Wheelslip only applies sand to engineer-driven locomotives when its "Include AutoEngineer" option is on.
     /// </summary>
     internal static class SlipSand
     {
@@ -510,11 +511,6 @@ namespace CollegeEducatedAutoEngineer
         }
 
         /// <summary>
-        /// The most tractive effort (lbf) the driver wheels carry before they slip, without sand and with sand: for each wheelset its weight on the
-        /// drivers times the friction coefficient Wheelslip Prototype's wheel patch hands to DriverWheelState.UpdateWheelslip (or the game's own curve when
-        /// Wheelslip is not there or does not cover engineers).
-        /// </summary>
-        /// <summary>
         /// True when the weather has cut the rail's grip: Wheelslip's weather coefficient is more than 5 % under the game's dry curve at the
         /// wheels' speed. False without Wheelslip (the game has no wet rail of its own) or when it does not cover engineers.
         /// </summary>
@@ -536,6 +532,11 @@ namespace CollegeEducatedAutoEngineer
             }
         }
 
+        /// <summary>
+        /// The most tractive effort (lbf) the driver wheels carry before they slip, without sand and with sand: for each wheelset its weight on the
+        /// drivers times the friction coefficient Wheelslip Prototype's wheel patch hands to DriverWheelState.UpdateWheelslip (or the game's own curve when
+        /// Wheelslip is not there or does not cover engineers).
+        /// </summary>
         internal static bool Limits(BaseLocomotive loco, out float noSand, out float withSand)
         {
             noSand = 0f;
@@ -700,9 +701,9 @@ namespace CollegeEducatedAutoEngineer
 
     /// <summary>
     /// The game's start-up loop sets the throttle straight from CalculateThrottleForTargetVelocityStarting every tick until the train is past
-    /// 1 mph, between the slip guard's own writes. In the 1.6.0 log that put an EMR 1200 with no sand at 0.625 for a moment above a ceiling of
-    /// 0.28, and the wheels slipped. The starting throttle is now held to the slip guard's ceiling where it is worked out, so the loop never asks
-    /// for more. Does nothing while the guard has no ceiling (1) or is off.
+    /// 1 mph, between the slip guard's own writes. Two things are done to that figure where the game works it out: a diesel starts in notch 1
+    /// (DieselStartNotchOne), and the result is held to the slip guard's ceiling (in the 1.6.0 log the loop put an EMR 1200 with no sand at 0.625
+    /// for a moment over a ceiling of 0.28, and the wheels slipped). Hill start (HillStart) calls the same method and gets the same result.
     /// </summary>
     [HarmonyPatch(typeof(AutoEngineer), "CalculateThrottleForTargetVelocityStarting")]
     internal static class AutoEngineer_StartingThrottle_Patch
@@ -710,14 +711,12 @@ namespace CollegeEducatedAutoEngineer
         private sealed class Start
         {
             public float LastCall = -100f;
-            public float Since;
             public int Notches = 1;
             public float RaisedAt;
             public float MphAtRaise;
         }
 
         private static readonly ConditionalWeakTable<AutoEngineer, Start> Starts = new ConditionalWeakTable<AutoEngineer, Start>();
-        private static readonly FieldInfo FTargets = AccessTools.Field(typeof(AutoEngineer), "_targets");
         private const float NotchStepSeconds = 2f;   // a diesel still standing gets one more notch this often
         private const float MovingMph = 0.3f;
         private const float GainingMph = 0.1f;
@@ -737,9 +736,10 @@ namespace CollegeEducatedAutoEngineer
         }
 
         /// <summary>
-        /// A diesel starts in notch 1 (the game rounds its starting throttle up to a notch and often asks for 2 or 3). While the train still
-        /// stands, it gets one more notch every 2 s, so a heavy train or a grade still gets going. Not on an upgrade at or above the hill-start
-        /// grade when the hill-start spool-up is on: there the locomotive must pull the moment the brakes let go.
+        /// A diesel starts in notch 1 (the game rounds its starting throttle up to a notch and often asks for 2 to 5). While the train is not
+        /// getting going (under 0.3 mph and less than 0.1 mph gained in the last 2 s) it gets one more notch every 2 s, so a heavy train or a
+        /// grade still gets going. Not on an upgrade at or above the hill-start grade when the hill-start spool-up is on: there the locomotive
+        /// must pull the moment the brakes let go.
         /// </summary>
         private static void DieselNotchOne(AutoEngineer ae, ref float result)
         {
@@ -747,7 +747,7 @@ namespace CollegeEducatedAutoEngineer
             if (!(loco is DieselLocomotive) || result <= RolloutActionLimits.ThrottleNotch + 0.001f) return;
             if (Main.Settings.HillStartSpoolUp)
             {
-                var targets = FTargets?.GetValue(ae) as AutoEngineer.Targets;
+                var targets = BrakeFix.TargetsOf(ae);
                 if (targets != null && -targets.AverageGradeUnder >= Main.Settings.HillStartMinGradePercent) return;
             }
 
@@ -756,7 +756,6 @@ namespace CollegeEducatedAutoEngineer
             if (now - st.LastCall > 1.5f)
             {
                 // A new start: the game calls this every tick while the train is under 1 mph.
-                st.Since = now;
                 st.RaisedAt = now;
                 st.MphAtRaise = loco.VelocityMphAbs;
                 st.Notches = 1;
