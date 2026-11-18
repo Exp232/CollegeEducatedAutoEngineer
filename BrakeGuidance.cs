@@ -199,17 +199,20 @@ namespace CollegeEducatedAutoEngineer
 
     /// <summary>
     /// Game 0.6.3 leaves the speed loop as soon as a moving train's command is zero or the other way
-    /// (IsMovingAgainstCommand) and goes to StopAndHold: full train brake and full locomotive brake at once. That
-    /// is what the stock engineer now does for a direction change or a speed order of 0 on a moving train, and it
-    /// skips the direction stop above (the train brake alone, the gentle brake limit and the car wheel lock cap
-    /// all live in the speed loop). While that stop is under way (2 mph and up, enough cars behind, still
-    /// slowing) this reports "not against the command", so the speed loop keeps the stop as in 0.6.2; under
-    /// 2 mph, or when the stop is handed back, the game's StopAndHold finishes it. A stop target (a waypoint, a
-    /// station, a red signal) is never touched: it has a target, so StopWithoutTarget is false.
+    /// (IsMovingAgainstCommand) and goes to StopAndHold, which writes the train brake handle to 1 (a 90 psi
+    /// reduction: an emergency application) and the locomotive brake to 1 every half second until the train
+    /// stands. It was added for a train creeping past its stop mark with the brakes off, but it also fires for a
+    /// speed order of 0 or a change of direction on a train at speed: in a 1.7.1 log, 0 mph ordered at 36 mph
+    /// put the train in emergency at once. Here a moving train is only left to StopAndHold for that stop-mark
+    /// case (a stop target within the game's 1 m, or passed); otherwise the speed loop stops it with a service
+    /// application, as in 0.6.2, and the direction stop above, the car wheel lock cap and the direction-change
+    /// pause all keep working. The game's own emergency stop for a stop target overrun by 3 m is untouched.
     /// </summary>
     [HarmonyPatch]
     internal static class AutoEngineer_IsMovingAgainstCommand_Patch
     {
+        private static bool _logged;
+
         private static MethodBase TargetMethod()
         {
             return AccessTools.PropertyGetter(typeof(AutoEngineer), "IsMovingAgainstCommand");
@@ -220,9 +223,28 @@ namespace CollegeEducatedAutoEngineer
             if (!__result || !Main.Active) return;
             try
             {
-                var s = Main.Settings;
-                if (!s.DirectionStopTrainBrakeOnly && s.DirectionStopBrakeLimit <= 0f) return;
-                if (BrakeGuidance.StopWithoutTarget(__instance)) __result = false;
+                var targets = BrakeFix.TargetsOf(__instance);
+                if (targets == null || __instance.Locomotive == null) return;
+                var list = targets.AllTargets;
+                if (list != null)
+                {
+                    foreach (var t in list)
+                    {
+                        // The game's TargetSpeedMph: the first target within 1 m. A stop there is the stop-mark case: leave it to the game.
+                        if (t.Distance < 1f)
+                        {
+                            if (Mathf.Abs(t.SpeedMph) < 0.01f) return;
+                            break;
+                        }
+                    }
+                }
+                __result = false;
+                if (!_logged)
+                {
+                    _logged = true;
+                    Main.Mod.Logger.Log("Stop order: " + __instance.Locomotive.DisplayName + " is stopped by the speed loop with a service application at "
+                        + (Mathf.Abs(__instance.Locomotive.velocity) * 2.23694f).ToString("0.0") + " mph, not by the game's StopAndHold emergency application (logged once).");
+                }
             }
             catch (Exception e)
             {

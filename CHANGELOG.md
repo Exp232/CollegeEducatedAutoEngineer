@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.3
+
+- **Fix for 0.6.3: no emergency application for a stop order at speed.** 0.6.3 hands a moving train whose order is 0 mph, or the other direction, to a new "stop and hold" step that puts the train brake handle at its end (a 90 psi reduction, which is an emergency application) and the locomotive brake on full. It is meant for a train creeping past its stop mark, but in the 1.7.1 log a 0 mph order at 36 mph went straight into emergency. Now only that stop-mark case (a stop target within 1 m, or passed) goes to the game's step. A speed order of 0 or a change of direction is stopped by the speed loop with a service application, as on 0.6.2, and the direction stop, its gentle brake limit and the car wheel lock cap work again. 1.7.1 only covered a train with no targets at all; this one had a track speed target 390 m ahead, so it was not covered. The game's own emergency stop for a stop target overrun by 3 m is unchanged.
+
 ## 1.7.2
 
 - **Wheelslip Prototype not running on 0.6.3.** Wheelslip Prototype 0.9.8 only runs on game 0.6.2 build 26335745. On 0.6.3 it logs "Wheelslip INACTIVE: unsupported Railroader.dll" and puts in none of its patches, but its assembly stays loaded. So this mod took it as present: it sent sand requests nobody acted on, put in the car lock guard, and capped the train brake against a lock law that was not running. Now the mod checks that Wheelslip has patches of its own in before using it. Loaded but not running means no sanding, no car lock guard, and the slip guard on the game's own adhesion, with one Player.log line saying so. Nothing changes where Wheelslip runs (0.6.2). Wheelslip itself needs an update from its author for 0.6.3.
