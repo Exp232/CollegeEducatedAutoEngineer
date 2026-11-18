@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.5
+
+- **Checked against the updated Wheelslip Prototype (0.9.8, re-released for 0.6.3 build 26740326).** Every Wheelslip member this mod reflects (sand runtime and request key, settings fields, weather coefficient, rail grip, burn grip, the wagon and locomotive brake law) is still there, so sanding, the slip guard's adhesion figures and the car lock guard work again on 0.6.3. The 1.7.2 check picks it up by itself: Player.log says "Wheelslip Prototype is running". No code change; the README and notes no longer say Wheelslip cannot run on 0.6.3.
+
 ## 1.7.4
 
 - **New for 0.6.3: waypoint and station stops hold without an emergency application** ("Hold stops without emergency", on). 0.6.3 sends every train that reaches its stop mark still rolling to the game's stop-and-hold step, which puts the train brake handle at its end, a 90 psi reduction and so an emergency application. In the 1.7.3 log both waypoint arrivals (at 0.7 to 0.9 mph, 0.8 m short of the mark) ended in emergency. The engineer's own writes in that step are now capped at a full service application (the train brake's maximum effective set, about 26 psi on a charged train), which holds a standing train just as well. The player's brake handle, the speed loop and the game's emergency stop for a stop target overrun by 3 m are unchanged. Settings window toggle under Braking (`StopHoldFullService`).

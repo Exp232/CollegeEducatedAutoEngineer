@@ -435,7 +435,7 @@ namespace CollegeEducatedAutoEngineer
     /// </summary>
     /// <summary>
     /// Whether Wheelslip Prototype is running, not only loaded. It checks the game build at start-up and, on a build it does not support
-    /// (0.9.8 accepts only 0.6.2 build 26335745, so not 0.6.3), logs "Wheelslip INACTIVE" and installs none of its patches while its
+    /// (the first 0.9.8 package accepted only 0.6.2 build 26335745; the re-release also takes 0.6.3 build 26740326), logs "Wheelslip INACTIVE" and installs none of its patches while its
     /// assembly stays loaded. Then there is no wet rail, no sand and no brake lock law, and the sanding, the car lock guard and the
     /// Wheelslip adhesion figures must stand down. Active = at least one Harmony patch comes from its assembly. Rechecked every 30 s
     /// until found (it patches when it loads, which is before the first engineer runs).
