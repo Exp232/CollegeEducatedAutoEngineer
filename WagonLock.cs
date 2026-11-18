@@ -85,6 +85,7 @@ namespace CollegeEducatedAutoEngineer
         internal static void EnsureIsolation()
         {
             if (_isolationTried) return;
+            if (WheelslipLink.Loaded && !WheelslipLink.Active) return;   // loaded but not running: nothing to isolate (yet)
             _isolationTried = true;
             try
             {
@@ -196,7 +197,7 @@ namespace CollegeEducatedAutoEngineer
             ratioAtFull = 0f;
             cylinderFraction = 0f;
             Init();
-            if (_current == null || loco == null) return false;
+            if (_current == null || loco == null || !WheelslipLink.Active) return false;
             try
             {
                 object s = _current.GetValue(null, null);

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.2
+
+- **Wheelslip Prototype not running on 0.6.3.** Wheelslip Prototype 0.9.8 only runs on game 0.6.2 build 26335745. On 0.6.3 it logs "Wheelslip INACTIVE: unsupported Railroader.dll" and puts in none of its patches, but its assembly stays loaded. So this mod took it as present: it sent sand requests nobody acted on, put in the car lock guard, and capped the train brake against a lock law that was not running. Now the mod checks that Wheelslip has patches of its own in before using it. Loaded but not running means no sanding, no car lock guard, and the slip guard on the game's own adhesion, with one Player.log line saying so. Nothing changes where Wheelslip runs (0.6.2). Wheelslip itself needs an update from its author for 0.6.3.
+
 ## 1.7.1
 
 Brought up to date with Railroader 0.6.3 (experimental). Still runs on 0.6.2; no change to the defaults.

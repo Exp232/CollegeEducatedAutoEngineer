@@ -433,6 +433,84 @@ namespace CollegeEducatedAutoEngineer
     /// train is going too fast. A request the player switched on is left alone. Locomotives with Wheelslip's automatic sanding (GP9, SD7) are
     /// left to it. Wheelslip only applies sand to engineer-driven locomotives when its "Include AutoEngineer" option is on.
     /// </summary>
+    /// <summary>
+    /// Whether Wheelslip Prototype is running, not only loaded. It checks the game build at start-up and, on a build it does not support
+    /// (0.9.8 accepts only 0.6.2 build 26335745, so not 0.6.3), logs "Wheelslip INACTIVE" and installs none of its patches while its
+    /// assembly stays loaded. Then there is no wet rail, no sand and no brake lock law, and the sanding, the car lock guard and the
+    /// Wheelslip adhesion figures must stand down. Active = at least one Harmony patch comes from its assembly. Rechecked every 30 s
+    /// until found (it patches when it loads, which is before the first engineer runs).
+    /// </summary>
+    internal static class WheelslipLink
+    {
+        private const string AssemblyName = "WheelslipPrototype";
+        private static bool _active;
+        private static float _nextCheck = -1f;
+        private static int _logged;    // 1 = logged as inactive, 2 = logged as active
+
+        internal static bool Loaded
+        {
+            get
+            {
+                foreach (Assembly asm in AppDomain.CurrentDomain.GetAssemblies())
+                    if (asm.GetName().Name == AssemblyName) return true;
+                return false;
+            }
+        }
+
+        internal static bool Active
+        {
+            get
+            {
+                if (_active) return true;
+                float now = Time.realtimeSinceStartup;
+                if (now < _nextCheck) return false;
+                _nextCheck = now + 30f;
+                try
+                {
+                    if (!Loaded) return false;
+                    foreach (MethodBase m in Harmony.GetAllPatchedMethods())
+                    {
+                        Patches info = Harmony.GetPatchInfo(m);
+                        if (info == null) continue;
+                        if (Owns(info.Prefixes) || Owns(info.Postfixes) || Owns(info.Transpilers) || Owns(info.Finalizers))
+                        {
+                            _active = true;
+                            if (_logged != 2)
+                            {
+                                _logged = 2;
+                                Main.Mod.Logger.Log("Wheelslip Prototype is running (its patches are in): sanding, wet rail and the car lock guard are used.");
+                            }
+                            return true;
+                        }
+                    }
+                    if (_logged == 0)
+                    {
+                        _logged = 1;
+                        Main.Mod.Logger.Log("Wheelslip Prototype is loaded but not running (no patches of its own; on a game build it does not support it logs \"Wheelslip INACTIVE\"): no sanding, no car lock guard, and the slip guard uses the game's own adhesion.");
+                    }
+                }
+                catch (Exception e)
+                {
+                    Main.Mod.Logger.Log("Wheelslip Prototype check failed: " + e.Message);
+                }
+                return false;
+            }
+        }
+
+        private static bool Owns(System.Collections.Generic.IEnumerable<Patch> patches)
+        {
+            if (patches == null) return false;
+            foreach (Patch p in patches)
+            {
+                if (p == null) continue;
+                if (p.owner != null && p.owner.IndexOf("wheelslip", StringComparison.OrdinalIgnoreCase) >= 0) return true;
+                Type t = p.PatchMethod?.DeclaringType;
+                if (t != null && t.Assembly.GetName().Name == AssemblyName) return true;
+            }
+            return false;
+        }
+    }
+
     internal static class SlipSand
     {
         private sealed class State
@@ -458,7 +536,7 @@ namespace CollegeEducatedAutoEngineer
             get
             {
                 Init();
-                return _profile != null && _amount != null && _requestKey != null;
+                return _profile != null && _amount != null && _requestKey != null && WheelslipLink.Active;
             }
         }
 
@@ -488,7 +566,7 @@ namespace CollegeEducatedAutoEngineer
                     _weather = asm.GetType("WheelslipPrototype.WeatherAdhesion")?.GetMethod("Coefficient", f);
                     _railGrip = sand?.GetMethod("RailGrip", f);
                     _burnGrip = asm.GetType("WheelslipPrototype.WheelBurns")?.GetMethod("Grip", f);
-                    Main.Mod.Logger.Log("Wheelslip Prototype found: " + (Present ? "the engineer can sand when the wheels slip." : "its sanding members were not found, so the engineer will not sand."));
+                    Main.Mod.Logger.Log("Wheelslip Prototype found: " + (_profile != null && _amount != null && _requestKey != null ? "the engineer can sand when the wheels slip (while Wheelslip is running)." : "its sanding members were not found, so the engineer will not sand."));
                     return;
                 }
             }
