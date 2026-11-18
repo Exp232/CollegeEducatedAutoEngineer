@@ -99,6 +99,8 @@ namespace CollegeEducatedAutoEngineer
                     Note(b, "Closes the throttle when a lower limit is in sight and the train is already at that speed. Not applied on steep climbs.");
                     b.AddFieldToggle("Stop with the train brake", () => s.DirectionStopTrainBrakeOnly, v => { s.DirectionStopTrainBrakeOnly = v; Save(); });
                     Note(b, "Stopping a moving train with no speed order (changing direction, or a speed of 0) uses the train brake only; the locomotive brake holds the train once it is nearly stopped.");
+                    b.AddFieldToggle("Hold stops without emergency", () => s.StopHoldFullService, v => { s.StopHoldFullService = v; Save(); });
+                    Note(b, "When the game holds a train at its stop mark it applies the train brake in emergency; this holds it with a full service application instead.");
                     Slider(b, "Direction change pause", () => s.DirectionChangePauseSeconds, v => s.DirectionChangePauseSeconds = v, 0f, 15f, 1f,
                         v => v <= 0f ? "off" : v.ToString("0") + " s");
                     Note(b, "When the engineer is told to run the other way, it stands still at least this long (brakes held, throttle closed) before it moves off. A stop blast is blown first when the game skipped it.");
@@ -229,6 +231,7 @@ namespace CollegeEducatedAutoEngineer
             s.AutoMarkers = d.AutoMarkers;
             s.StallGuard = d.StallGuard;
             s.DirectionStopTrainBrakeOnly = d.DirectionStopTrainBrakeOnly;
+            s.StopHoldFullService = d.StopHoldFullService;
             s.DirectionChangePauseSeconds = d.DirectionChangePauseSeconds;
             s.DirectionChangeHorn = d.DirectionChangeHorn;
             s.HillStartSpoolUp = d.HillStartSpoolUp;

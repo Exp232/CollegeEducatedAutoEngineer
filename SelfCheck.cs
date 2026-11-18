@@ -86,6 +86,7 @@ namespace CollegeEducatedAutoEngineer
                     () => BrakeGuidance.TrainBrakeType != null && Method(BrakeGuidance.TrainBrakeType, "CalculateMaxEffectiveApplication", Type.EmptyTypes, typeof(float)),
                 ["RolloutController.WeightsFor(AutoEngineer)"] =
                     () => Method(typeof(RolloutController), "WeightsFor", new[] { typeof(AutoEngineer) }, typeof(RolloutScoreWeights)),
+                ["AutoEngineer.Loop() iterator, LocomotiveControlHelper.TrainBrake (set)"] = () => StopHold.Available,
                 ["AutoEngineer.IsMovingAgainstCommand"] = () => AccessTools.PropertyGetter(AE, "IsMovingAgainstCommand")?.ReturnType == typeof(bool),
                 ["AutoEngineer._speedControlLoop"] = () => Field(AE, "_speedControlLoop", null),
                 ["AutoEngineer.SpeedControlLoop._rolloutController"] =
@@ -240,6 +241,15 @@ namespace CollegeEducatedAutoEngineer
                     TurnOff = () => s.DirectionStopTrainBrakeOnly = false,
                     Needs = new[] { "AutoEngineer.SpeedControlLoop.ApplyRolloutCommand(in RolloutCommand)", "AutoEngineer.SpeedControlLoop._ae, _trainBrake, _measuredAccel", "AutoEngineer._targets", "Targets.MaxSpeedMph", "Targets.AllTargets", "AutoEngineer.IsMovingAgainstCommand" },
                     Patches = new[] { typeof(SpeedControlLoop_ApplyRolloutCommand_Patch), typeof(AutoEngineer_IsMovingAgainstCommand_Patch) },
+                },
+                new Feature
+                {
+                    Name = "Stop and hold without emergency",
+                    AlwaysPatch = true,
+                    On = () => s.StopHoldFullService,
+                    TurnOff = () => s.StopHoldFullService = false,
+                    Needs = new[] { "AutoEngineer.Loop() iterator, LocomotiveControlHelper.TrainBrake (set)" },
+                    Patches = new[] { typeof(AutoEngineer_Loop_Patch) },
                 },
                 new Feature
                 {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.7.4
+
+- **New for 0.6.3: waypoint and station stops hold without an emergency application** ("Hold stops without emergency", on). 0.6.3 sends every train that reaches its stop mark still rolling to the game's stop-and-hold step, which puts the train brake handle at its end, a 90 psi reduction and so an emergency application. In the 1.7.3 log both waypoint arrivals (at 0.7 to 0.9 mph, 0.8 m short of the mark) ended in emergency. The engineer's own writes in that step are now capped at a full service application (the train brake's maximum effective set, about 26 psi on a charged train), which holds a standing train just as well. The player's brake handle, the speed loop and the game's emergency stop for a stop target overrun by 3 m are unchanged. Settings window toggle under Braking (`StopHoldFullService`).
+- The 1.7.3 fix showed in the same log: two 0 mph orders at 1.5 to 1.7 mph were stopped with a 20 to 25 psi service application, not emergency.
+
 ## 1.7.3
 
 - **Fix for 0.6.3: no emergency application for a stop order at speed.** 0.6.3 hands a moving train whose order is 0 mph, or the other direction, to a new "stop and hold" step that puts the train brake handle at its end (a 90 psi reduction, which is an emergency application) and the locomotive brake on full. It is meant for a train creeping past its stop mark, but in the 1.7.1 log a 0 mph order at 36 mph went straight into emergency. Now only that stop-mark case (a stop target within 1 m, or passed) goes to the game's step. A speed order of 0 or a change of direction is stopped by the speed loop with a service application, as on 0.6.2, and the direction stop, its gentle brake limit and the car wheel lock cap work again. 1.7.1 only covered a train with no targets at all; this one had a track speed target 390 m ahead, so it was not covered. The game's own emergency stop for a stop target overrun by 3 m is unchanged.

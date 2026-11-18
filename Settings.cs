@@ -205,6 +205,12 @@ namespace CollegeEducatedAutoEngineer
         public bool DirectionStopTrainBrakeOnly = true;
 
         /// <summary>
+        /// The game's stop-and-hold step (0.6.3 uses it for every train that reaches its stop mark still rolling) puts the train
+        /// brake handle at its end, a 90 psi reduction: an emergency application. On: it is capped at a full service application.
+        /// </summary>
+        public bool StopHoldFullService = true;
+
+        /// <summary>
         /// The direction-change stop (above) is only used when the cars behind the locomotives and tenders are at least this
         /// share of the train's weight (percent); a locomotive running light, or with a few empty cars, is stopped by the
         /// controller as in the stock game, because the train brake alone has almost nothing to hold. 0 = always.
