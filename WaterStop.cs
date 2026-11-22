@@ -108,6 +108,24 @@ namespace CollegeEducatedAutoEngineer
         private float _lastWater;
         private float _lastFlow;
         private bool _saidNoColumn;
+        private bool _saidTrainOrders;
+
+        // QbanRambo's Train Orders keeps each locomotive's orders in its key-value store under this key, with "run"
+        // true while they run. Its orders drive the engine (refuelling included), so the water stop leaves it alone.
+        private const string TrainOrdersKey = "qbanrambo.train-orders";
+
+        private static bool TrainOrdersRunning(BaseLocomotive loco)
+        {
+            try
+            {
+                Value orders = loco.KeyValueObject[TrainOrdersKey];
+                return !orders.IsNull && orders["run"].BoolValueOrDefault(false);
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
         private int _corrections;
         private float _lastMiss = float.NaN;
         // How far before its waypoint this engine's train really stops, learnt from the last stops (per locomotive):
@@ -279,6 +297,16 @@ namespace CollegeEducatedAutoEngineer
                     bool roadOrders = orders.Mode == AutoEngineerMode.Road;
                     bool waypointOrders = orders.Mode == AutoEngineerMode.Waypoint && orders.Waypoint.HasValue;
                     if (!(roadOrders || waypointOrders) || orders.MaxSpeedMph <= 0 || float.IsNaN(water)) return;
+                    if (TrainOrdersRunning(_loco))
+                    {
+                        if (!_saidTrainOrders)
+                        {
+                            _saidTrainOrders = true;
+                            Main.Mod.Logger.Log($"Water stop ({Name}): Train Orders is running this engine, so no water stop (refuel it with a Train Orders refuel order).");
+                        }
+                        return;
+                    }
+                    _saidTrainOrders = false;
                     if (now < _quietUntil) return;
                     float threshold = Mathf.Clamp(Main.Settings.WaterStopPercent, 5f, 90f) / 100f;
                     if (water >= threshold) { _saidNoColumn = false; return; }

@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.7.6
+
+- **Water stop leaves Train Orders alone.** While QbanRambo's Train Orders is running an engine's orders, the water stop no longer takes it over. At Bryson it had pulled a light engine that Train Orders was taking to refuel off to the water column and then put it back on Road orders, in the middle of Train Orders' refuel. Train Orders' own refuel orders take the water instead. The check reads Train Orders' orders from the locomotive (no dependency on the mod), and the log says once per engine that it is leaving it to Train Orders.
+
 ## 1.7.5
 
 - **Checked against the updated Wheelslip Prototype (0.9.8, re-released for 0.6.3 build 26740326).** Every Wheelslip member this mod reflects (sand runtime and request key, settings fields, weather coefficient, rail grip, burn grip, the wagon and locomotive brake law) is still there, so sanding, the slip guard's adhesion figures and the car lock guard work again on 0.6.3. The 1.7.2 check picks it up by itself: Player.log says "Wheelslip Prototype is running". No code change; the README and notes no longer say Wheelslip cannot run on 0.6.3.
